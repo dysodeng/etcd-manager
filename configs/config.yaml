@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+etcd:
+  endpoints:
+    - "localhost:2379"
+  username: ""
+  password: ""
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+    ca_file: ""
+
+database:
+  path: "./data/config-center.db"
+
+jwt:
+  secret: "change-me-in-production"
+  expire_hours: 24
+
+log:
+  level: "info"
