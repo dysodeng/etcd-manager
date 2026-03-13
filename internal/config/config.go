@@ -29,7 +29,9 @@ type TLSConfig struct {
 }
 
 type DatabaseConfig struct {
-	Path string `mapstructure:"path"`
+	Driver string `mapstructure:"driver"` // sqlite 或 postgres
+	Path   string `mapstructure:"path"`   // SQLite 文件路径
+	DSN    string `mapstructure:"dsn"`    // PostgreSQL 连接串
 }
 
 type JWTConfig struct {

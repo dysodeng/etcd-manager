@@ -1,4 +1,4 @@
-package sqlite
+package pgsql
 
 import (
 	"context"
@@ -14,17 +14,19 @@ type UserRepository struct{ db *gorm.DB }
 func NewUserRepository(db *gorm.DB) *UserRepository { return &UserRepository{db: db} }
 
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
-	user.ID = uuid.Must(uuid.NewV7())
 	m := userToModel(user)
 	if err := GetDB(ctx, r.db).Create(m).Error; err != nil {
 		return err
 	}
+	user.ID = m.ID
+	user.CreatedAt = m.CreatedAt
+	user.UpdatedAt = m.UpdatedAt
 	return nil
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	var m User
-	if err := GetDB(ctx, r.db).Where("id = ?", id.String()).First(&m).Error; err != nil {
+	if err := GetDB(ctx, r.db).Where("id = ?", id).First(&m).Error; err != nil {
 		return nil, err
 	}
 	return userToDomain(&m), nil
@@ -58,12 +60,12 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 }
 
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return GetDB(ctx, r.db).Where("id = ?", id.String()).Delete(&User{}).Error
+	return GetDB(ctx, r.db).Where("id = ?", id).Delete(&User{}).Error
 }
 
 func userToDomain(m *User) *domain.User {
 	return &domain.User{
-		ID:           uuid.MustParse(m.ID),
+		ID:           m.ID,
 		Username:     m.Username,
 		PasswordHash: m.PasswordHash,
 		Role:         m.Role,
@@ -74,7 +76,7 @@ func userToDomain(m *User) *domain.User {
 
 func userToModel(d *domain.User) *User {
 	return &User{
-		ID:           d.ID.String(),
+		ID:           d.ID,
 		Username:     d.Username,
 		PasswordHash: d.PasswordHash,
 		Role:         d.Role,

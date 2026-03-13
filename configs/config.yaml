@@ -13,7 +13,11 @@ etcd:
     ca_file: ""
 
 database:
-  path: "./data/config-center.db"
+  driver: "postgres"  # sqlite 或 postgres
+  # SQLite 配置
+  #path: "./data/config-center.db"
+  # PostgreSQL 配置 (driver 为 postgres 时使用)
+  dsn: "host=localhost port=5432 user=postgres password=123456 dbname=config_center sslmode=disable"
 
 jwt:
   secret: "change-me-in-production"

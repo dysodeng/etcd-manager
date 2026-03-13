@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/dysodeng/config-center/internal/config"
+	"github.com/dysodeng/config-center/internal/domain"
 	"github.com/dysodeng/config-center/internal/etcd"
 	"github.com/dysodeng/config-center/internal/handler"
 	"github.com/dysodeng/config-center/internal/seed"
 	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/config-center/internal/store/pgsql"
 	"github.com/dysodeng/config-center/internal/store/sqlite"
 )
 
@@ -26,9 +29,42 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	db, err := sqlite.NewDB(cfg.Database.Path)
+	// 设置北京时间
+	loc, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {
-		log.Fatalf("failed to init database: %v", err)
+		log.Fatalf("failed to load timezone: %v", err)
+	}
+	time.Local = loc
+
+	var (
+		txManager    domain.TransactionManager
+		userRepo     domain.UserRepository
+		envRepo      domain.EnvironmentRepository
+		revisionRepo domain.ConfigRevisionRepository
+		auditRepo    domain.AuditLogRepository
+	)
+
+	switch cfg.Database.Driver {
+	case "postgres":
+		db, err := pgsql.NewDB(cfg.Database.DSN, loc)
+		if err != nil {
+			log.Fatalf("failed to init database: %v", err)
+		}
+		txManager = pgsql.NewTransactionManager(db)
+		userRepo = pgsql.NewUserRepository(db)
+		envRepo = pgsql.NewEnvironmentRepository(db)
+		revisionRepo = pgsql.NewConfigRevisionRepository(db)
+		auditRepo = pgsql.NewAuditLogRepository(db)
+	default: // sqlite
+		db, err := sqlite.NewDB(cfg.Database.Path, loc)
+		if err != nil {
+			log.Fatalf("failed to init database: %v", err)
+		}
+		txManager = sqlite.NewTransactionManager(db)
+		userRepo = sqlite.NewUserRepository(db)
+		envRepo = sqlite.NewEnvironmentRepository(db)
+		revisionRepo = sqlite.NewConfigRevisionRepository(db)
+		auditRepo = sqlite.NewAuditLogRepository(db)
 	}
 
 	etcdClient, err := etcd.NewClient(cfg.Etcd)
@@ -36,12 +72,6 @@ func main() {
 		log.Fatalf("failed to connect etcd: %v", err)
 	}
 	defer etcdClient.Close()
-
-	txManager := sqlite.NewTransactionManager(db)
-	userRepo := sqlite.NewUserRepository(db)
-	envRepo := sqlite.NewEnvironmentRepository(db)
-	revisionRepo := sqlite.NewConfigRevisionRepository(db)
-	auditRepo := sqlite.NewAuditLogRepository(db)
 
 	if err = seed.CreateAdminUser(context.Background(), userRepo); err != nil {
 		log.Fatalf("failed to seed admin user: %v", err)

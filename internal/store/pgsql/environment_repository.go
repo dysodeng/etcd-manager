@@ -1,4 +1,4 @@
-package sqlite
+package pgsql
 
 import (
 	"context"
@@ -16,13 +16,19 @@ func NewEnvironmentRepository(db *gorm.DB) *EnvironmentRepository {
 }
 
 func (r *EnvironmentRepository) Create(ctx context.Context, env *domain.Environment) error {
-	env.ID = uuid.Must(uuid.NewV7())
-	return GetDB(ctx, r.db).Create(envToModel(env)).Error
+	m := envToModel(env)
+	if err := GetDB(ctx, r.db).Create(m).Error; err != nil {
+		return err
+	}
+	env.ID = m.ID
+	env.CreatedAt = m.CreatedAt
+	env.UpdatedAt = m.UpdatedAt
+	return nil
 }
 
 func (r *EnvironmentRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Environment, error) {
 	var m Environment
-	if err := GetDB(ctx, r.db).Where("id = ?", id.String()).First(&m).Error; err != nil {
+	if err := GetDB(ctx, r.db).Where("id = ?", id).First(&m).Error; err != nil {
 		return nil, err
 	}
 	return envToDomain(&m), nil
@@ -53,12 +59,12 @@ func (r *EnvironmentRepository) Update(ctx context.Context, env *domain.Environm
 }
 
 func (r *EnvironmentRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return GetDB(ctx, r.db).Where("id = ?", id.String()).Delete(&Environment{}).Error
+	return GetDB(ctx, r.db).Where("id = ?", id).Delete(&Environment{}).Error
 }
 
 func envToDomain(m *Environment) *domain.Environment {
 	return &domain.Environment{
-		ID:          uuid.MustParse(m.ID),
+		ID:          m.ID,
 		Name:        m.Name,
 		KeyPrefix:   m.KeyPrefix,
 		Description: m.Description,
@@ -70,7 +76,7 @@ func envToDomain(m *Environment) *domain.Environment {
 
 func envToModel(d *domain.Environment) *Environment {
 	return &Environment{
-		ID:          d.ID.String(),
+		ID:          d.ID,
 		Name:        d.Name,
 		KeyPrefix:   d.KeyPrefix,
 		Description: d.Description,

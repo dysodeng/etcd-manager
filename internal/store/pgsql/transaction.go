@@ -1,4 +1,4 @@
-package sqlite
+package pgsql
 
 import (
 	"context"
