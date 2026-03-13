@@ -19,7 +19,7 @@
 | 层级 | 技术 | 说明 |
 |------|------|------|
 | 后端框架 | Go + Gin | 轻量高性能 |
-| 数据库 | SQLite + GORM | 零运维，存储版本历史/用户/审计 |
+| 数据库 | SQLite + GORM | 零运维，仓储模式抽象，可替换为 MySQL/PostgreSQL |
 | etcd 客户端 | etcd client v3 | KV 操作、Watch、Lease |
 | 认证 | JWT | 无状态，前后端分离友好 |
 | 实时推送 | SSE | 比 WebSocket 简单，天然支持重连 |
@@ -80,7 +80,12 @@ config-center/
 │   ├── model/                   # 数据模型（GORM）
 │   ├── middleware/              # Gin 中间件（JWT、CORS、日志）
 │   ├── etcd/                    # etcd 客户端封装
-│   └── store/                   # SQLite 数据访问层
+│   └── store/                   # 数据访问层（仓储模式）
+│       ├── repository.go        # Repository 接口定义
+│       ├── transaction.go       # 事务管理器接口
+│       └── sqlite/              # SQLite 实现（可替换为 MySQL/PostgreSQL）
+│           ├── repository.go    # 接口实现
+│           └── transaction.go   # 事务管理器实现
 ├── configs/
 │   └── config.yaml
 ├── go.mod
@@ -192,6 +197,20 @@ viewer 可查看所有环境的配置数据，但不能修改。
 
 - 默认 page=1，page_size=20
 - page_size 上限 100
+
+### 数据访问层设计（仓储模式）
+
+数据访问层采用事务管理器 + 仓储（Repository）模式，Service 层依赖接口而非具体实现，后续切换数据库（MySQL/PostgreSQL）只需替换 DB 连接和实现层，不影响业务逻辑。
+
+核心接口：
+
+- `TransactionManager` — 事务管理器接口，提供 `WithTransaction(ctx, fn)` 方法
+- `UserRepository` — 用户数据访问接口
+- `EnvironmentRepository` — 环境数据访问接口
+- `ConfigRevisionRepository` — 配置版本数据访问接口
+- `AuditLogRepository` — 审计日志数据访问接口
+
+Service 层通过构造函数注入 Repository 接口，不直接依赖 GORM 或任何具体数据库实现。
 
 ## API 设计
 
@@ -324,7 +343,7 @@ id: 12345
 | 构建工具 | Vite |
 | 语言 | TypeScript |
 | 路由 | React Router v6 |
-| 状态管理 | Zustand |
+| 状态管理 | Zustand |;
 | HTTP 客户端 | Axios |
 | 代码编辑器 | Monaco Editor |
 
