@@ -6,11 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/dysodeng/config-center/internal/handler"
+	"github.com/dysodeng/config-center/internal/response"
 )
 
 type Claims struct {
-	UserID   uint   `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
@@ -20,7 +20,7 @@ func JWTAuth(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := extractToken(c)
 		if tokenStr == "" {
-			handler.FailUnauthorized(c, "missing token")
+			response.FailUnauthorized(c, "missing token")
 			c.Abort()
 			return
 		}
@@ -29,7 +29,7 @@ func JWTAuth(secret string) gin.HandlerFunc {
 			return []byte(secret), nil
 		})
 		if err != nil || !token.Valid {
-			handler.FailUnauthorized(c, "invalid or expired token")
+			response.FailUnauthorized(c, "invalid or expired token")
 			c.Abort()
 			return
 		}

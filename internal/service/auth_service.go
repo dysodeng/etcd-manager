@@ -5,26 +5,27 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/dysodeng/config-center/internal/domain"
 	"github.com/dysodeng/config-center/internal/middleware"
-	"github.com/dysodeng/config-center/internal/store"
 )
 
 type AuthService struct {
-	userRepo  store.UserRepository
+	userRepo  domain.UserRepository
 	jwtSecret string
 	expireH   int
 }
 
-func NewAuthService(userRepo store.UserRepository, jwtSecret string, expireH int) *AuthService {
+func NewAuthService(userRepo domain.UserRepository, jwtSecret string, expireH int) *AuthService {
 	return &AuthService{userRepo: userRepo, jwtSecret: jwtSecret, expireH: expireH}
 }
 
 type LoginResult struct {
 	Token    string `json:"token"`
-	UserID   uint   `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 }
@@ -38,7 +39,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*Lo
 		return nil, errors.New("invalid username or password")
 	}
 	claims := &middleware.Claims{
-		UserID:   user.ID,
+		UserID:   user.ID.String(),
 		Username: user.Username,
 		Role:     user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -53,13 +54,13 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*Lo
 	}
 	return &LoginResult{
 		Token:    tokenStr,
-		UserID:   user.ID,
+		UserID:   user.ID.String(),
 		Username: user.Username,
 		Role:     user.Role,
 	}, nil
 }
 
-func (s *AuthService) ChangePassword(ctx context.Context, userID uint, oldPwd, newPwd string) error {
+func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, oldPwd, newPwd string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return err

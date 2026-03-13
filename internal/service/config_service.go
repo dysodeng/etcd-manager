@@ -7,25 +7,25 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
+	"github.com/dysodeng/config-center/internal/domain"
 	"github.com/dysodeng/config-center/internal/etcd"
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
 )
 
 type ConfigService struct {
 	etcdClient   *etcd.Client
-	envRepo      store.EnvironmentRepository
-	revisionRepo store.ConfigRevisionRepository
-	txManager    store.TransactionManager
+	envRepo      domain.EnvironmentRepository
+	revisionRepo domain.ConfigRevisionRepository
+	txManager    domain.TransactionManager
 }
 
 func NewConfigService(
 	etcdClient *etcd.Client,
-	envRepo store.EnvironmentRepository,
-	revisionRepo store.ConfigRevisionRepository,
-	txManager store.TransactionManager,
+	envRepo domain.EnvironmentRepository,
+	revisionRepo domain.ConfigRevisionRepository,
+	txManager domain.TransactionManager,
 ) *ConfigService {
 	return &ConfigService{
 		etcdClient:   etcdClient,
@@ -58,7 +58,7 @@ func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]Con
 	return items, nil
 }
 
-func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment string, operatorID uint) error {
+func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment string, operatorID uuid.UUID) error {
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
@@ -75,7 +75,7 @@ func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment
 	if err != nil {
 		return err
 	}
-	return s.revisionRepo.Create(ctx, &model.ConfigRevision{
+	return s.revisionRepo.Create(ctx, &domain.ConfigRevision{
 		EnvironmentID: env.ID,
 		Key:           key,
 		Value:         value,
@@ -86,7 +86,7 @@ func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment
 	})
 }
 
-func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment string, operatorID uint) error {
+func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment string, operatorID uuid.UUID) error {
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
@@ -104,7 +104,7 @@ func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment
 	if err != nil {
 		return err
 	}
-	return s.revisionRepo.Create(ctx, &model.ConfigRevision{
+	return s.revisionRepo.Create(ctx, &domain.ConfigRevision{
 		EnvironmentID: env.ID,
 		Key:           key,
 		Value:         value,
@@ -116,7 +116,7 @@ func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment
 	})
 }
 
-func (s *ConfigService) Delete(ctx context.Context, envName, key string, operatorID uint) error {
+func (s *ConfigService) Delete(ctx context.Context, envName, key string, operatorID uuid.UUID) error {
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
@@ -134,7 +134,7 @@ func (s *ConfigService) Delete(ctx context.Context, envName, key string, operato
 	if err != nil {
 		return err
 	}
-	return s.revisionRepo.Create(ctx, &model.ConfigRevision{
+	return s.revisionRepo.Create(ctx, &domain.ConfigRevision{
 		EnvironmentID: env.ID,
 		Key:           key,
 		PrevValue:     prevValue,
@@ -144,7 +144,7 @@ func (s *ConfigService) Delete(ctx context.Context, envName, key string, operato
 	})
 }
 
-func (s *ConfigService) Revisions(ctx context.Context, envName, key string, page, pageSize int) ([]model.ConfigRevision, int64, error) {
+func (s *ConfigService) Revisions(ctx context.Context, envName, key string, page, pageSize int) ([]domain.ConfigRevision, int64, error) {
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return nil, 0, fmt.Errorf("environment not found: %s", envName)
@@ -152,12 +152,12 @@ func (s *ConfigService) Revisions(ctx context.Context, envName, key string, page
 	return s.revisionRepo.ListByKey(ctx, env.ID, key, page, pageSize)
 }
 
-func (s *ConfigService) Rollback(ctx context.Context, envName, key string, revisionID, operatorID uint) error {
+func (s *ConfigService) Rollback(ctx context.Context, envName, key string, revisionID uuid.UUID, operatorID uuid.UUID) error {
 	rev, err := s.revisionRepo.GetByID(ctx, revisionID)
 	if err != nil {
 		return errors.New("revision not found")
 	}
-	return s.Update(ctx, envName, key, rev.Value, fmt.Sprintf("rollback to revision %d", revisionID), operatorID)
+	return s.Update(ctx, envName, key, rev.Value, fmt.Sprintf("rollback to revision %s", revisionID), operatorID)
 }
 
 func (s *ConfigService) Export(ctx context.Context, envName, format string) ([]byte, error) {
@@ -185,7 +185,7 @@ type ImportResult struct {
 	Failed  []string `json:"failed,omitempty"`
 }
 
-func (s *ConfigService) Import(ctx context.Context, envName string, data []byte, dryRun bool, operatorID uint) (*ImportResult, error) {
+func (s *ConfigService) Import(ctx context.Context, envName string, data []byte, dryRun bool, operatorID uuid.UUID) (*ImportResult, error) {
 	var configs map[string]string
 	if err := json.Unmarshal(data, &configs); err != nil {
 		if err := yaml.Unmarshal(data, &configs); err != nil {
@@ -215,7 +215,7 @@ func (s *ConfigService) Import(ctx context.Context, envName string, data []byte,
 			result.Failed = append(result.Failed, key)
 			continue
 		}
-		_ = s.revisionRepo.Create(ctx, &model.ConfigRevision{
+		_ = s.revisionRepo.Create(ctx, &domain.ConfigRevision{
 			EnvironmentID: env.ID,
 			Key:           key,
 			Value:         value,

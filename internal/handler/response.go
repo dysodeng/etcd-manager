@@ -1,60 +1,46 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+
+	"github.com/dysodeng/config-center/internal/response"
 )
 
-// 错误码
+// Re-export constants from response package for handler convenience
 const (
-	CodeSuccess          = 0
-	CodeParamInvalid     = 10001
-	CodeUnauthorized     = 10002
-	CodeForbidden        = 10003
-	CodeKeyExists        = 20001
-	CodeKeyNotFound      = 20002
-	CodeRevisionNotFound = 20003
-	CodeEnvExists        = 20004
-	CodeEnvHasConfigs    = 20005
-	CodeEtcdConnFailed   = 30001
-	CodeEtcdOpFailed     = 30002
-	CodeUserExists       = 40001
-	CodeAuthFailed       = 40002
-	CodeImportFormat     = 50001
-	CodeImportPartial    = 50002
-	CodeInternalError    = 99999
+	CodeSuccess          = response.CodeSuccess
+	CodeParamInvalid     = response.CodeParamInvalid
+	CodeUnauthorized     = response.CodeUnauthorized
+	CodeForbidden        = response.CodeForbidden
+	CodeKeyExists        = response.CodeKeyExists
+	CodeKeyNotFound      = response.CodeKeyNotFound
+	CodeRevisionNotFound = response.CodeRevisionNotFound
+	CodeEnvExists        = response.CodeEnvExists
+	CodeEnvHasConfigs    = response.CodeEnvHasConfigs
+	CodeEtcdConnFailed   = response.CodeEtcdConnFailed
+	CodeEtcdOpFailed     = response.CodeEtcdOpFailed
+	CodeUserExists       = response.CodeUserExists
+	CodeAuthFailed       = response.CodeAuthFailed
+	CodeImportFormat     = response.CodeImportFormat
+	CodeImportPartial    = response.CodeImportPartial
+	CodeInternalError    = response.CodeInternalError
 )
 
-type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-}
-
-type PageData struct {
-	List     interface{} `json:"list"`
-	Total    int64       `json:"total"`
-	Page     int         `json:"page"`
-	PageSize int         `json:"page_size"`
-}
+// Response is re-exported for use in handlers
+type Response = response.Response
 
 func OK(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, Response{Code: CodeSuccess, Message: "ok", Data: data})
+	response.OK(c, data)
 }
 
 func OKPage(c *gin.Context, list interface{}, total int64, page, pageSize int) {
-	c.JSON(http.StatusOK, Response{
-		Code:    CodeSuccess,
-		Message: "ok",
-		Data:    PageData{List: list, Total: total, Page: page, PageSize: pageSize},
-	})
+	response.OKPage(c, list, total, page, pageSize)
 }
 
 func Fail(c *gin.Context, code int, message string) {
-	c.JSON(http.StatusOK, Response{Code: code, Message: message, Data: nil})
+	response.Fail(c, code, message)
 }
 
 func FailUnauthorized(c *gin.Context, message string) {
-	c.JSON(http.StatusUnauthorized, Response{Code: CodeUnauthorized, Message: message, Data: nil})
+	response.FailUnauthorized(c, message)
 }

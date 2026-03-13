@@ -4,25 +4,26 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
+
+	"github.com/dysodeng/config-center/internal/domain"
 	"github.com/dysodeng/config-center/internal/etcd"
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
 )
 
 type EnvironmentService struct {
-	envRepo    store.EnvironmentRepository
+	envRepo    domain.EnvironmentRepository
 	etcdClient *etcd.Client
 }
 
-func NewEnvironmentService(envRepo store.EnvironmentRepository, etcdClient *etcd.Client) *EnvironmentService {
+func NewEnvironmentService(envRepo domain.EnvironmentRepository, etcdClient *etcd.Client) *EnvironmentService {
 	return &EnvironmentService{envRepo: envRepo, etcdClient: etcdClient}
 }
 
-func (s *EnvironmentService) Create(ctx context.Context, name, keyPrefix, description string, sortOrder int) (*model.Environment, error) {
+func (s *EnvironmentService) Create(ctx context.Context, name, keyPrefix, description string, sortOrder int) (*domain.Environment, error) {
 	if _, err := s.envRepo.GetByName(ctx, name); err == nil {
 		return nil, errors.New("environment already exists")
 	}
-	env := &model.Environment{
+	env := &domain.Environment{
 		Name:        name,
 		KeyPrefix:   keyPrefix,
 		Description: description,
@@ -34,11 +35,11 @@ func (s *EnvironmentService) Create(ctx context.Context, name, keyPrefix, descri
 	return env, nil
 }
 
-func (s *EnvironmentService) List(ctx context.Context) ([]model.Environment, error) {
+func (s *EnvironmentService) List(ctx context.Context) ([]domain.Environment, error) {
 	return s.envRepo.List(ctx)
 }
 
-func (s *EnvironmentService) Update(ctx context.Context, id uint, name, keyPrefix, description string, sortOrder int) error {
+func (s *EnvironmentService) Update(ctx context.Context, id uuid.UUID, name, keyPrefix, description string, sortOrder int) error {
 	env, err := s.envRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
@@ -50,7 +51,7 @@ func (s *EnvironmentService) Update(ctx context.Context, id uint, name, keyPrefi
 	return s.envRepo.Update(ctx, env)
 }
 
-func (s *EnvironmentService) Delete(ctx context.Context, id uint) error {
+func (s *EnvironmentService) Delete(ctx context.Context, id uuid.UUID) error {
 	env, err := s.envRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
@@ -65,10 +66,10 @@ func (s *EnvironmentService) Delete(ctx context.Context, id uint) error {
 	return s.envRepo.Delete(ctx, id)
 }
 
-func (s *EnvironmentService) GetByID(ctx context.Context, id uint) (*model.Environment, error) {
+func (s *EnvironmentService) GetByID(ctx context.Context, id uuid.UUID) (*domain.Environment, error) {
 	return s.envRepo.GetByID(ctx, id)
 }
 
-func (s *EnvironmentService) GetByName(ctx context.Context, name string) (*model.Environment, error) {
+func (s *EnvironmentService) GetByName(ctx context.Context, name string) (*domain.Environment, error) {
 	return s.envRepo.GetByName(ctx, name)
 }

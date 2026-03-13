@@ -3,14 +3,14 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/handler"
+	"github.com/dysodeng/config-center/internal/response"
 )
 
 func RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, _ := c.Get("role")
 		if role != "admin" {
-			handler.Fail(c, handler.CodeForbidden, "admin role required")
+			response.Fail(c, response.CodeForbidden, "admin role required")
 			c.Abort()
 			return
 		}
@@ -26,7 +26,7 @@ func RequireAdminForWrite() gin.HandlerFunc {
 		}
 		role, _ := c.Get("role")
 		if role != "admin" {
-			handler.Fail(c, handler.CodeForbidden, "admin role required for write operations")
+			response.Fail(c, response.CodeForbidden, "admin role required for write operations")
 			c.Abort()
 			return
 		}

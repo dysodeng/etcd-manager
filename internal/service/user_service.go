@@ -4,21 +4,21 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/config-center/internal/domain"
 )
 
 type UserService struct {
-	userRepo store.UserRepository
+	userRepo domain.UserRepository
 }
 
-func NewUserService(userRepo store.UserRepository) *UserService {
+func NewUserService(userRepo domain.UserRepository) *UserService {
 	return &UserService{userRepo: userRepo}
 }
 
-func (s *UserService) Create(ctx context.Context, username, password, role string) (*model.User, error) {
+func (s *UserService) Create(ctx context.Context, username, password, role string) (*domain.User, error) {
 	if _, err := s.userRepo.GetByUsername(ctx, username); err == nil {
 		return nil, errors.New("username already exists")
 	}
@@ -26,7 +26,7 @@ func (s *UserService) Create(ctx context.Context, username, password, role strin
 	if err != nil {
 		return nil, err
 	}
-	user := &model.User{
+	user := &domain.User{
 		Username:     username,
 		PasswordHash: string(hash),
 		Role:         role,
@@ -37,11 +37,11 @@ func (s *UserService) Create(ctx context.Context, username, password, role strin
 	return user, nil
 }
 
-func (s *UserService) List(ctx context.Context, page, pageSize int) ([]model.User, int64, error) {
+func (s *UserService) List(ctx context.Context, page, pageSize int) ([]domain.User, int64, error) {
 	return s.userRepo.List(ctx, page, pageSize)
 }
 
-func (s *UserService) Update(ctx context.Context, id uint, role string) error {
+func (s *UserService) Update(ctx context.Context, id uuid.UUID, role string) error {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
@@ -50,10 +50,10 @@ func (s *UserService) Update(ctx context.Context, id uint, role string) error {
 	return s.userRepo.Update(ctx, user)
 }
 
-func (s *UserService) Delete(ctx context.Context, id uint) error {
+func (s *UserService) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.userRepo.Delete(ctx, id)
 }
 
-func (s *UserService) GetByID(ctx context.Context, id uint) (*model.User, error) {
+func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, id)
 }
