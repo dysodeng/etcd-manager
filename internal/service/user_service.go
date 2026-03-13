@@ -1,0 +1,59 @@
+package service
+
+import (
+	"context"
+	"errors"
+
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/dysodeng/config-center/internal/model"
+	"github.com/dysodeng/config-center/internal/store"
+)
+
+type UserService struct {
+	userRepo store.UserRepository
+}
+
+func NewUserService(userRepo store.UserRepository) *UserService {
+	return &UserService{userRepo: userRepo}
+}
+
+func (s *UserService) Create(ctx context.Context, username, password, role string) (*model.User, error) {
+	if _, err := s.userRepo.GetByUsername(ctx, username); err == nil {
+		return nil, errors.New("username already exists")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	user := &model.User{
+		Username:     username,
+		PasswordHash: string(hash),
+		Role:         role,
+	}
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *UserService) List(ctx context.Context, page, pageSize int) ([]model.User, int64, error) {
+	return s.userRepo.List(ctx, page, pageSize)
+}
+
+func (s *UserService) Update(ctx context.Context, id uint, role string) error {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	user.Role = role
+	return s.userRepo.Update(ctx, user)
+}
+
+func (s *UserService) Delete(ctx context.Context, id uint) error {
+	return s.userRepo.Delete(ctx, id)
+}
+
+func (s *UserService) GetByID(ctx context.Context, id uint) (*model.User, error) {
+	return s.userRepo.GetByID(ctx, id)
+}
