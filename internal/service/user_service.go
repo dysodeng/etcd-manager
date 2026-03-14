@@ -46,11 +46,21 @@ func (s *UserService) Update(ctx context.Context, id uuid.UUID, role string) err
 	if err != nil {
 		return err
 	}
+	if user.Username == "admin" {
+		return errors.New("cannot modify the super admin")
+	}
 	user.Role = role
 	return s.userRepo.Update(ctx, user)
 }
 
 func (s *UserService) Delete(ctx context.Context, id uuid.UUID) error {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if user.Username == "admin" {
+		return errors.New("cannot delete the super admin")
+	}
 	return s.userRepo.Delete(ctx, id)
 }
 

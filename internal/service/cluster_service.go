@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/dysodeng/config-center/internal/etcd"
 )
@@ -15,7 +17,7 @@ func NewClusterService(etcdClient *etcd.Client) *ClusterService {
 }
 
 type MemberInfo struct {
-	ID         uint64   `json:"id"`
+	ID         string   `json:"id"`
 	Name       string   `json:"name"`
 	PeerURLs   []string `json:"peer_urls"`
 	ClientURLs []string `json:"client_urls"`
@@ -24,10 +26,13 @@ type MemberInfo struct {
 
 type ClusterStatus struct {
 	Members []MemberInfo `json:"members"`
-	Leader  uint64       `json:"leader"`
+	Leader  string       `json:"leader"`
 }
 
 func (s *ClusterService) Status(ctx context.Context) (*ClusterStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	resp, err := s.etcdClient.MemberList(ctx)
 	if err != nil {
 		return nil, err
@@ -35,7 +40,7 @@ func (s *ClusterService) Status(ctx context.Context) (*ClusterStatus, error) {
 	status := &ClusterStatus{}
 	for _, m := range resp.Members {
 		status.Members = append(status.Members, MemberInfo{
-			ID:         m.ID,
+			ID:         fmt.Sprintf("%x", m.ID),
 			Name:       m.Name,
 			PeerURLs:   m.PeerURLs,
 			ClientURLs: m.ClientURLs,
@@ -46,7 +51,7 @@ func (s *ClusterService) Status(ctx context.Context) (*ClusterStatus, error) {
 	if len(endpoints) > 0 {
 		sr, err := s.etcdClient.Status(ctx, endpoints[0])
 		if err == nil {
-			status.Leader = sr.Leader
+			status.Leader = fmt.Sprintf("%x", sr.Leader)
 		}
 	}
 	return status, nil
@@ -55,12 +60,15 @@ func (s *ClusterService) Status(ctx context.Context) (*ClusterStatus, error) {
 type ClusterMetrics struct {
 	Version     string          `json:"version"`
 	DBSize      int64           `json:"db_size"`
-	LeaderID    uint64          `json:"leader_id"`
+	LeaderID    string          `json:"leader_id"`
 	MemberCount int             `json:"member_count"`
 	Health      map[string]bool `json:"health"`
 }
 
 func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	endpoints := s.etcdClient.Endpoints()
 	metrics := &ClusterMetrics{
 		Health: make(map[string]bool),
@@ -75,7 +83,7 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		if metrics.Version == "" {
 			metrics.Version = sr.Version
 			metrics.DBSize = sr.DbSize
-			metrics.LeaderID = sr.Leader
+			metrics.LeaderID = fmt.Sprintf("%x", sr.Leader)
 		}
 	}
 	resp, err := s.etcdClient.MemberList(ctx)

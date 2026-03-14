@@ -1,0 +1,177 @@
+// API 统一响应
+export interface ApiResponse<T = unknown> {
+  code: number
+  message: string
+  data: T
+}
+
+export interface PaginatedData<T> {
+  list: T[]
+  total: number
+  page: number
+  page_size: number
+}
+
+// 领域实体
+export interface User {
+  id: string
+  username: string
+  role: 'admin' | 'viewer'
+  created_at: string
+  updated_at: string
+}
+
+export interface Environment {
+  id: string
+  name: string
+  key_prefix: string
+  description: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ConfigRevision {
+  id: string
+  environment_id: string
+  key: string
+  value: string
+  prev_value: string
+  etcd_revision: number
+  action: 'create' | 'update' | 'delete'
+  operator: string
+  comment: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AuditLog {
+  id: string
+  user_id: string
+  action: string
+  resource_type: string
+  resource_key: string
+  detail: string
+  ip: string
+  created_at: string
+  updated_at: string
+}
+
+// KV
+export interface KVItem {
+  key: string
+  value: string
+  version: number
+  create_revision: number
+  mod_revision: number
+}
+
+// Auth
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  token: string
+  user_id: string
+  username: string
+  role: string
+}
+
+export interface ChangePasswordRequest {
+  old_password: string
+  new_password: string
+}
+
+// Config
+export interface ConfigItem {
+  key: string
+  value: string
+}
+
+export interface ConfigCreateRequest {
+  env: string
+  key: string
+  value: string
+  comment?: string
+}
+
+export interface ConfigUpdateRequest {
+  env: string
+  key: string
+  value: string
+  comment?: string
+}
+
+export interface ConfigRollbackRequest {
+  env: string
+  key: string
+  revision_id: string
+}
+
+export interface ImportResult {
+  total: number
+  success: number
+  failed: string[]
+}
+
+// Environment
+export interface EnvironmentCreateRequest {
+  name: string
+  key_prefix: string
+  description?: string
+  sort_order?: number
+}
+
+// User
+export interface UserCreateRequest {
+  username: string
+  password: string
+  role: 'admin' | 'viewer'
+}
+
+export interface UserUpdateRequest {
+  role: 'admin' | 'viewer'
+}
+
+// Cluster
+export interface ClusterStatus {
+  members: ClusterMember[]
+  leader: string
+}
+
+export interface ClusterMember {
+  id: string
+  name: string
+  peer_urls: string[]
+  client_urls: string[]
+  is_learner: boolean
+}
+
+export interface ClusterMetrics {
+  leader_id: string
+  db_size: number
+  member_count: number
+  version: string
+  health: Record<string, boolean>
+}
+
+// Audit filter
+export interface AuditLogFilter {
+  user_id?: string
+  action?: string
+  resource_type?: string
+  start_time?: string
+  end_time?: string
+  page?: number
+  page_size?: number
+}
+
+// Watch SSE event
+export interface WatchEvent {
+  type: 'PUT' | 'DELETE' | 'COMPACTED'
+  key: string
+  value?: string
+  revision: number
+}

@@ -3,7 +3,7 @@ server:
 
 etcd:
   endpoints:
-    - "localhost:2379"
+    - "127.0.0.1:2379"
   username: ""
   password: ""
   tls:
