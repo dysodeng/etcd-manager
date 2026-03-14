@@ -1,0 +1,10 @@
+.git
+.idea
+.env
+.superpowers
+data/
+web/node_modules
+web/dist
+*.exe
+*.test
+*.out

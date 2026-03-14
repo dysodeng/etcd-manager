@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: etcd-manager-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: etcd-manager-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
