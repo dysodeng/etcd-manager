@@ -5,7 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/dysodeng/config-center/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 )
 
 type AuditLogRepository struct{ db *gorm.DB }
@@ -45,7 +45,7 @@ func (r *AuditLogRepository) List(ctx context.Context, filter domain.AuditLogFil
 		db = db.Where("created_at <= ?", *filter.EndTime)
 	}
 	db.Count(&total)
-	if err := db.Offset((page-1)*pageSize).Limit(pageSize).Order("created_at DESC").Find(&models).Error; err != nil {
+	if err := db.Offset((page - 1) * pageSize).Limit(pageSize).Order("created_at DESC").Find(&models).Error; err != nil {
 		return nil, 0, err
 	}
 	logs := make([]domain.AuditLog, len(models))

@@ -9,14 +9,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/config"
-	"github.com/dysodeng/config-center/internal/domain"
-	"github.com/dysodeng/config-center/internal/etcd"
-	"github.com/dysodeng/config-center/internal/handler"
-	"github.com/dysodeng/config-center/internal/seed"
-	"github.com/dysodeng/config-center/internal/service"
-	"github.com/dysodeng/config-center/internal/store/pgsql"
-	"github.com/dysodeng/config-center/internal/store/sqlite"
+	"github.com/dysodeng/etcd-manager/internal/config"
+	"github.com/dysodeng/etcd-manager/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/handler"
+	"github.com/dysodeng/etcd-manager/internal/seed"
+	"github.com/dysodeng/etcd-manager/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/store/pgsql"
+	"github.com/dysodeng/etcd-manager/internal/store/sqlite"
 )
 
 func main() {

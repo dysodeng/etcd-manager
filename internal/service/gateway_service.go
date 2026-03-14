@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -38,7 +38,7 @@ type ServiceGroup struct {
 	ServiceName    string            `json:"service_name"`
 	InstanceCount  int               `json:"instance_count"`
 	HealthyCount   int               `json:"healthy_count"`
-	UnhealthyCount int              `json:"unhealthy_count"`
+	UnhealthyCount int               `json:"unhealthy_count"`
 	Instances      []ServiceInstance `json:"instances"`
 }
 

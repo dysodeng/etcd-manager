@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/dysodeng/config-center/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 )
 
 type EnvironmentRepository struct{ db *gorm.DB }

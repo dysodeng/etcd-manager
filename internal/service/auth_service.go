@@ -5,12 +5,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/dysodeng/config-center/internal/domain"
-	"github.com/dysodeng/config-center/internal/middleware"
+	"github.com/dysodeng/etcd-manager/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/middleware"
 )
 
 type AuthService struct {

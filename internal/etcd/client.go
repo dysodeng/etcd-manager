@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dysodeng/config-center/internal/config"
+	"github.com/dysodeng/etcd-manager/internal/config"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

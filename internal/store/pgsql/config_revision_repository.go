@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/dysodeng/config-center/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 )
 
 type ConfigRevisionRepository struct{ db *gorm.DB }
@@ -31,7 +31,7 @@ func (r *ConfigRevisionRepository) ListByKey(ctx context.Context, envID uuid.UUI
 	var total int64
 	db := GetDB(ctx, r.db).Model(&ConfigRevision{}).Where("environment_id = ? AND key = ?", envID, key)
 	db.Count(&total)
-	if err := db.Offset((page-1)*pageSize).Limit(pageSize).Order("created_at DESC").Find(&models).Error; err != nil {
+	if err := db.Offset((page - 1) * pageSize).Limit(pageSize).Order("created_at DESC").Find(&models).Error; err != nil {
 		return nil, 0, err
 	}
 	revs := make([]domain.ConfigRevision, len(models))

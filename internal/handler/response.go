@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/response"
+	"github.com/dysodeng/etcd-manager/internal/response"
 )
 
 // Re-export constants from response package for handler convenience

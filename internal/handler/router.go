@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/middleware"
+	"github.com/dysodeng/etcd-manager/internal/middleware"
 )
 
 type Handlers struct {

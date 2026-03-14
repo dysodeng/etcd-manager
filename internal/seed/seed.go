@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/dysodeng/config-center/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 )
 
 func CreateAdminUser(ctx context.Context, userRepo domain.UserRepository) error {

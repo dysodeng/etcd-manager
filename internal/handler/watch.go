@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type WatchHandler struct {

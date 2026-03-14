@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/dysodeng/config-center/internal/domain"
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type AuditHandler struct {

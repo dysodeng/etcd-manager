@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type KVService struct {

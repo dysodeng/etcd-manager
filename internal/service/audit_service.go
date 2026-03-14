@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/dysodeng/config-center/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 )
 
 type AuditService struct {

@@ -3,7 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/response"
+	"github.com/dysodeng/etcd-manager/internal/response"
 )
 
 func RequireAdmin() gin.HandlerFunc {

@@ -1,4 +1,4 @@
-module github.com/dysodeng/config-center
+module github.com/dysodeng/etcd-manager
 
 go 1.25.0
 

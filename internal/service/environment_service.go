@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/dysodeng/config-center/internal/domain"
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type EnvironmentService struct {

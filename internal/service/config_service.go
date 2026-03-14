@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
-	"github.com/dysodeng/config-center/internal/domain"
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/domain"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type ConfigService struct {

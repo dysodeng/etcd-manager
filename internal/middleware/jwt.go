@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/dysodeng/config-center/internal/response"
+	"github.com/dysodeng/etcd-manager/internal/response"
 )
 
 type Claims struct {

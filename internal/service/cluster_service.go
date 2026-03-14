@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type ClusterService struct {

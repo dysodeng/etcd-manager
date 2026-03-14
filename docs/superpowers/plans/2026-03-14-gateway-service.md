@@ -51,7 +51,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type GatewayService struct {
@@ -165,7 +165,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type GatewayHandler struct {

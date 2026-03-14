@@ -317,7 +317,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dysodeng/config-center/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/model"
 )
 
 type UserRepository interface {
@@ -389,7 +389,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dysodeng/config-center/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -467,7 +467,7 @@ package sqlite
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -509,7 +509,7 @@ package sqlite
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -549,7 +549,7 @@ package sqlite
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -583,8 +583,8 @@ package sqlite
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/store"
 	"gorm.io/gorm"
 )
 
@@ -656,7 +656,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dysodeng/config-center/internal/config"
+	"github.com/dysodeng/etcd-manager/internal/config"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -858,7 +858,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/dysodeng/config-center/internal/handler"
+	"github.com/dysodeng/etcd-manager/internal/handler"
 )
 
 type Claims struct {
@@ -971,7 +971,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/handler"
+	"github.com/dysodeng/etcd-manager/internal/handler"
 )
 
 func RequireAdmin() gin.HandlerFunc {
@@ -1037,8 +1037,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/dysodeng/config-center/internal/middleware"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/middleware"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 type AuthService struct {
@@ -1133,8 +1133,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 type UserService struct {
@@ -1212,9 +1212,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dysodeng/config-center/internal/etcd"
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 type EnvironmentService struct {
@@ -1308,8 +1308,8 @@ package service
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 type AuditService struct {
@@ -1361,7 +1361,7 @@ package service
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type KVService struct {
@@ -1458,9 +1458,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/dysodeng/config-center/internal/etcd"
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 type ConfigService struct {
@@ -1707,7 +1707,7 @@ package service
 import (
 	"context"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type ClusterService struct {
@@ -1820,7 +1820,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type AuthHandler struct {
@@ -1912,7 +1912,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type KVHandler struct {
@@ -2045,7 +2045,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type ConfigCenterHandler struct {
@@ -2328,7 +2328,7 @@ import (
 	"github.com/gin-gonic/gin"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/dysodeng/config-center/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
 )
 
 type WatchHandler struct {
@@ -2439,7 +2439,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type ClusterHandler struct {
@@ -2496,7 +2496,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type UserHandler struct {
@@ -2608,8 +2608,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/service"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 type AuditHandler struct {
@@ -2682,7 +2682,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/middleware"
+	"github.com/dysodeng/etcd-manager/internal/middleware"
 )
 
 type Handlers struct {
@@ -2796,8 +2796,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/dysodeng/config-center/internal/model"
-	"github.com/dysodeng/config-center/internal/store"
+	"github.com/dysodeng/etcd-manager/internal/model"
+	"github.com/dysodeng/etcd-manager/internal/store"
 )
 
 func CreateAdminUser(ctx context.Context, userRepo store.UserRepository) error {
@@ -2855,12 +2855,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/dysodeng/config-center/internal/config"
-	"github.com/dysodeng/config-center/internal/etcd"
-	"github.com/dysodeng/config-center/internal/handler"
-	"github.com/dysodeng/config-center/internal/seed"
-	"github.com/dysodeng/config-center/internal/service"
-	"github.com/dysodeng/config-center/internal/store/sqlite"
+	"github.com/dysodeng/etcd-manager/internal/config"
+	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/handler"
+	"github.com/dysodeng/etcd-manager/internal/seed"
+	"github.com/dysodeng/etcd-manager/internal/service"
+	"github.com/dysodeng/etcd-manager/internal/store/sqlite"
 )
 
 func main() {
