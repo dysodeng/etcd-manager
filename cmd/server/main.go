@@ -94,7 +94,7 @@ func main() {
 		Watch:        handler.NewWatchHandler(etcdClient),
 		Cluster:      handler.NewClusterHandler(clusterSvc),
 		User:         handler.NewUserHandler(userSvc, auditSvc),
-		Audit:        handler.NewAuditHandler(auditSvc),
+		Audit:        handler.NewAuditHandler(auditSvc, userSvc),
 		Gateway:      handler.NewGatewayHandler(gatewaySvc, auditSvc),
 		Grpc:         handler.NewGrpcHandler(grpcSvc, auditSvc),
 	}

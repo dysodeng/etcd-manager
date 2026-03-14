@@ -51,6 +51,7 @@ export interface ConfigRevision {
 export interface AuditLog {
   id: string
   user_id: string
+  username: string
   action: string
   resource_type: string
   resource_key: string

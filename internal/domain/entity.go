@@ -45,6 +45,7 @@ type ConfigRevision struct {
 type AuditLog struct {
 	ID           uuid.UUID `json:"id"`
 	UserID       uuid.UUID `json:"user_id"`
+	Username     string    `json:"username"`
 	Action       string    `json:"action"`
 	ResourceType string    `json:"resource_type"`
 	ResourceKey  string    `json:"resource_key"`

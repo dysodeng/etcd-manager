@@ -13,10 +13,11 @@ import (
 
 type AuditHandler struct {
 	auditSvc *service.AuditService
+	userSvc  *service.UserService
 }
 
-func NewAuditHandler(auditSvc *service.AuditService) *AuditHandler {
-	return &AuditHandler{auditSvc: auditSvc}
+func NewAuditHandler(auditSvc *service.AuditService, userSvc *service.UserService) *AuditHandler {
+	return &AuditHandler{auditSvc: auditSvc, userSvc: userSvc}
 }
 
 func (h *AuditHandler) List(c *gin.Context) {
@@ -51,5 +52,18 @@ func (h *AuditHandler) List(c *gin.Context) {
 		Fail(c, CodeInternalError, err.Error())
 		return
 	}
+
+	// 批量填充用户名
+	userMap := make(map[uuid.UUID]string)
+	for i := range logs {
+		uid := logs[i].UserID
+		if _, ok := userMap[uid]; !ok {
+			if u, err := h.userSvc.GetByID(c.Request.Context(), uid); err == nil {
+				userMap[uid] = u.Username
+			}
+		}
+		logs[i].Username = userMap[uid]
+	}
+
 	OKPage(c, logs, total, page, pageSize)
 }

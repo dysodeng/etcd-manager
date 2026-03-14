@@ -46,6 +46,7 @@ export default function AuditPage() {
   }
 
   const columns = [
+    { title: '操作人', dataIndex: 'username', key: 'username', width: 100 },
     {
       title: '操作', dataIndex: 'action', key: 'action', width: 100,
       render: (a: string) => <Tag color={actionColors[a] ?? 'default'}>{a}</Tag>,
