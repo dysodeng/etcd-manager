@@ -143,6 +143,7 @@ export interface UserUpdateRequest {
 
 // Cluster
 export interface ClusterStatus {
+  cluster_id: string
   members: ClusterMember[]
   leader: string
 }
@@ -156,7 +157,8 @@ export interface ClusterMember {
 }
 
 export interface ClusterMetrics {
-  leader_id: string
+  cluster_id: string
+  leader_name: string
   db_size: number
   member_count: number
   version: string

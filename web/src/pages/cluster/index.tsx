@@ -55,16 +55,17 @@ export default function ClusterPage() {
 
       {metrics && (
         <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col span={6}><Card><Statistic title="集群 ID" value={metrics.cluster_id} /></Card></Col>
           <Col span={6}><Card><Statistic title="成员数量" value={metrics.member_count} /></Card></Col>
           <Col span={6}><Card><Statistic title="DB 大小" value={(metrics.db_size / 1024 / 1024).toFixed(2)} suffix="MB" /></Card></Col>
-          <Col span={6}><Card><Statistic title="Leader ID" value={metrics.leader_id} /></Card></Col>
           <Col span={6}><Card><Statistic title="etcd 版本" value={metrics.version} /></Card></Col>
         </Row>
       )}
 
       {status && (
         <Card title="集群成员" style={{ marginBottom: 24 }}>
-          <Descriptions column={1} size="small">
+          <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="集群 ID">{status.cluster_id}</Descriptions.Item>
             <Descriptions.Item label="Leader">{status.leader}</Descriptions.Item>
           </Descriptions>
           <Table
@@ -74,7 +75,15 @@ export default function ClusterPage() {
             size="small"
             columns={[
               { title: 'ID', dataIndex: 'id', key: 'id' },
-              { title: '名称', dataIndex: 'name', key: 'name' },
+              {
+                title: '名称', dataIndex: 'name', key: 'name',
+                render: (name: string) => (
+                  <Space>
+                    {name}
+                    {name === status.leader && <Tag color="blue">Leader</Tag>}
+                  </Space>
+                ),
+              },
               { title: 'Peer URLs', dataIndex: 'peer_urls', key: 'peer_urls', render: (urls: string[]) => urls.join(', ') },
               { title: 'Client URLs', dataIndex: 'client_urls', key: 'client_urls', render: (urls: string[]) => urls.join(', ') },
             ]}

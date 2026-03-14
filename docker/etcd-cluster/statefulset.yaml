@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  namespace: etcd-cluster
+  labels:
+    app: etcd
+spec:
+  serviceName: etcd-headless
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+        - name: etcd
+          image: registry.i.huaxisy.com/library/etcd:v3.5.5
+          ports:
+            - containerPort: 2379
+              name: client
+            - containerPort: 2380
+              name: peer
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              # 清除 Kubernetes 自动注入的 ETCD_ 前缀环境变量，避免与 etcd 命令行参数冲突
+              for var in $(env | grep -oP '^ETCD_\w+(?==)'); do
+                unset "$var"
+              done
+
+              exec etcd \
+                --name=${POD_NAME} \
+                --data-dir=/var/lib/etcd \
+                --listen-client-urls=http://0.0.0.0:2379 \
+                --advertise-client-urls=http://${POD_NAME}.etcd-headless.etcd-cluster.svc.cluster.local:2379 \
+                --listen-peer-urls=http://0.0.0.0:2380 \
+                --initial-advertise-peer-urls=http://${POD_NAME}.etcd-headless.etcd-cluster.svc.cluster.local:2380 \
+                --initial-cluster=etcd-0=http://etcd-0.etcd-headless.etcd-cluster.svc.cluster.local:2380,etcd-1=http://etcd-1.etcd-headless.etcd-cluster.svc.cluster.local:2380,etcd-2=http://etcd-2.etcd-headless.etcd-cluster.svc.cluster.local:2380 \
+                --initial-cluster-token=etcd-cluster-token \
+                --initial-cluster-state=new \
+                --auto-compaction-retention=1 \
+                --max-request-bytes=10485760 \
+                --quota-backend-bytes=8589934592
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 2379
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 2379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /var/lib/etcd
+  volumeClaimTemplates:
+    - metadata:
+        name: etcd-data
+      spec:
+        storageClassName: nfs-csi
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi

@@ -64,11 +64,9 @@ export default function GatewayPage() {
 
   const instanceColumns = [
     {
-      title: 'ID', dataIndex: 'id', key: 'id', width: 280,
+      title: 'ID', dataIndex: 'id', key: 'id',
       render: (id: string) => (
-        <Tooltip title={id}>
-          <span style={{ fontFamily: 'monospace' }}>{id.slice(0, 8)}...</span>
-        </Tooltip>
+        <span style={{ fontFamily: 'monospace' }}>{id}</span>
       ),
     },
     {

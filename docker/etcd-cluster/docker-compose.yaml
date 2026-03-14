@@ -1,0 +1,84 @@
+services:
+  etcd-1:
+    image: registry.i.huaxisy.com/library/etcd:v3.5.5
+    container_name: etcd-1
+    command:
+      - etcd
+      - --name=etcd-1
+      - --data-dir=/var/lib/etcd
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd-1:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd-1:2380
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-token=etcd-cluster-token
+      - --initial-cluster-state=new
+      - --auto-compaction-retention=1
+      - --max-request-bytes=10485760
+      - --quota-backend-bytes=8589934592
+    volumes:
+      - etcd-1-data:/var/lib/etcd
+    ports:
+      - "2379:2379"
+    networks:
+      - etcd-net
+    restart: unless-stopped
+
+  etcd-2:
+    image: registry.i.huaxisy.com/library/etcd:v3.5.5
+    container_name: etcd-2
+    command:
+      - etcd
+      - --name=etcd-2
+      - --data-dir=/var/lib/etcd
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd-2:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd-2:2380
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-token=etcd-cluster-token
+      - --initial-cluster-state=new
+      - --auto-compaction-retention=1
+      - --max-request-bytes=10485760
+      - --quota-backend-bytes=8589934592
+    volumes:
+      - etcd-2-data:/var/lib/etcd
+    ports:
+      - "2479:2379"
+    networks:
+      - etcd-net
+    restart: unless-stopped
+
+  etcd-3:
+    image: registry.i.huaxisy.com/library/etcd:v3.5.5
+    container_name: etcd-3
+    command:
+      - etcd
+      - --name=etcd-3
+      - --data-dir=/var/lib/etcd
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd-3:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd-3:2380
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-token=etcd-cluster-token
+      - --initial-cluster-state=new
+      - --auto-compaction-retention=1
+      - --max-request-bytes=10485760
+      - --quota-backend-bytes=8589934592
+    volumes:
+      - etcd-3-data:/var/lib/etcd
+    ports:
+      - "2579:2379"
+    networks:
+      - etcd-net
+    restart: unless-stopped
+
+volumes:
+  etcd-1-data:
+  etcd-2-data:
+  etcd-3-data:
+
+networks:
+  etcd-net:
+    driver: bridge
