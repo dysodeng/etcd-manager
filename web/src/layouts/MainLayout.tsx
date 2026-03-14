@@ -16,6 +16,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   ApiOutlined,
+  CloudServerOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
@@ -31,6 +32,7 @@ const menuItems = [
   { key: '/kv', icon: <DatabaseOutlined />, label: 'KV 管理' },
   { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
   { key: '/gateway', icon: <ApiOutlined />, label: '网关服务' },
+  { key: '/grpc', icon: <CloudServerOutlined />, label: 'gRPC 服务' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理', adminOnly: true },
   { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
 ]
