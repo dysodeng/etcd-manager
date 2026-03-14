@@ -97,14 +97,14 @@ export interface ConfigCreateRequest {
   env: string
   key: string
   value: string
-  comment?: string
+  comment: string
 }
 
 export interface ConfigUpdateRequest {
   env: string
   key: string
   value: string
-  comment?: string
+  comment: string
 }
 
 export interface ConfigRollbackRequest {

@@ -247,8 +247,8 @@ export default function ConfigPage() {
           <Form.Item label="Value">
             <MonacoEditor value={editorValue} onChange={setEditorValue} height={360} />
           </Form.Item>
-          <Form.Item name="comment" label="变更备注">
-            <Input.TextArea rows={2} placeholder="可选" />
+          <Form.Item name="comment" label="变更备注" rules={[{ required: true, message: '请输入变更备注' }]}>
+            <Input.TextArea rows={2} placeholder="请输入变更备注" />
           </Form.Item>
         </Form>
       </Modal>

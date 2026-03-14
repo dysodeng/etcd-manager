@@ -129,10 +129,10 @@ func (h *ConfigCenterHandler) CreateConfig(c *gin.Context) {
 		Env     string `json:"env" binding:"required"`
 		Key     string `json:"key" binding:"required"`
 		Value   string `json:"value"`
-		Comment string `json:"comment"`
+		Comment string `json:"comment" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Fail(c, CodeParamInvalid, err.Error())
+		Fail(c, CodeParamInvalid, "env, key and comment are required")
 		return
 	}
 	userID, ok := getUserID(c)
@@ -147,7 +147,7 @@ func (h *ConfigCenterHandler) CreateConfig(c *gin.Context) {
 		}
 		return
 	}
-	h.auditSvc.Log(c.Request.Context(), userID, "create", "config", req.Key, req.Env, c.ClientIP())
+	h.auditSvc.Log(c.Request.Context(), userID, "create", "config", req.Key, "["+req.Env+"] "+req.Comment, c.ClientIP())
 	OK(c, nil)
 }
 
@@ -156,10 +156,10 @@ func (h *ConfigCenterHandler) UpdateConfig(c *gin.Context) {
 		Env     string `json:"env" binding:"required"`
 		Key     string `json:"key" binding:"required"`
 		Value   string `json:"value"`
-		Comment string `json:"comment"`
+		Comment string `json:"comment" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Fail(c, CodeParamInvalid, err.Error())
+		Fail(c, CodeParamInvalid, "env, key and comment are required")
 		return
 	}
 	userID, ok := getUserID(c)
@@ -170,7 +170,7 @@ func (h *ConfigCenterHandler) UpdateConfig(c *gin.Context) {
 		Fail(c, CodeEtcdOpFailed, err.Error())
 		return
 	}
-	h.auditSvc.Log(c.Request.Context(), userID, "update", "config", req.Key, req.Env, c.ClientIP())
+	h.auditSvc.Log(c.Request.Context(), userID, "update", "config", req.Key, "["+req.Env+"] "+req.Comment, c.ClientIP())
 	OK(c, nil)
 }
 
