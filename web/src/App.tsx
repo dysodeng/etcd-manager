@@ -8,6 +8,7 @@ import ConfigPage from '@/pages/config'
 import ClusterPage from '@/pages/cluster'
 import UsersPage from '@/pages/users'
 import AuditPage from '@/pages/audit'
+import GatewayPage from '@/pages/gateway'
 import { useAuthStore } from '@/stores/auth'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="cluster" element={<ClusterPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="audit" element={<AuditPage />} />
+            <Route path="gateway" element={<GatewayPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

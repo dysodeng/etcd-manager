@@ -15,12 +15,13 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
+  ApiOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import { authApi } from '@/api/auth'
 import { environmentApi } from '@/api/environment'
-import type { Environment } from '@/types'
+import type { Environment, EnvironmentCreateRequest } from '@/types'
 
 const { Sider, Header, Content } = Layout
 const { Text } = Typography
@@ -29,6 +30,7 @@ const menuItems = [
   { key: '/cluster', icon: <ClusterOutlined />, label: '集群信息' },
   { key: '/kv', icon: <DatabaseOutlined />, label: 'KV 管理' },
   { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
+  { key: '/gateway', icon: <ApiOutlined />, label: '网关服务' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理', adminOnly: true },
   { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
 ]
@@ -93,6 +95,9 @@ export default function MainLayout() {
     envForm.setFieldsValue({
       name: env.name,
       key_prefix: env.key_prefix,
+      config_prefix: env.config_prefix,
+      gateway_prefix: env.gateway_prefix,
+      grpc_prefix: env.grpc_prefix,
       description: env.description,
       sort_order: env.sort_order,
     })
@@ -103,10 +108,10 @@ export default function MainLayout() {
     const values = await envForm.validateFields()
     try {
       if (editingEnv) {
-        await environmentApi.update(editingEnv.id, values as { name: string; key_prefix: string; description?: string; sort_order?: number })
+        await environmentApi.update(editingEnv.id, values as EnvironmentCreateRequest)
         message.success('更新成功')
       } else {
-        await environmentApi.create(values as { name: string; key_prefix: string; description?: string; sort_order?: number })
+        await environmentApi.create(values as EnvironmentCreateRequest)
         message.success('创建成功')
       }
       setEnvModalOpen(false)
@@ -127,8 +132,11 @@ export default function MainLayout() {
   }
 
   const envColumns = [
-    { title: '名称', dataIndex: 'name', key: 'name' },
-    { title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix' },
+    { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
+    { title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix', width: 140 },
+    { title: '配置前缀', dataIndex: 'config_prefix', key: 'config_prefix', width: 120 },
+    { title: '网关前缀', dataIndex: 'gateway_prefix', key: 'gateway_prefix', width: 130 },
+    { title: 'gRPC 前缀', dataIndex: 'grpc_prefix', key: 'grpc_prefix', width: 130 },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
     {
@@ -243,7 +251,7 @@ export default function MainLayout() {
         open={envOpen}
         onCancel={() => setEnvOpen(false)}
         footer={null}
-        width={700}
+        width={1000}
       >
         <div style={{ marginBottom: 16 }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={openEnvCreate}>新建环境</Button>
@@ -264,7 +272,16 @@ export default function MainLayout() {
             <Input placeholder="例如: production" />
           </Form.Item>
           <Form.Item name="key_prefix" label="Key 前缀" rules={[{ required: true, message: '请输入 Key 前缀' }]}>
-            <Input placeholder="例如: /prod/" disabled={!!editingEnv} />
+            <Input placeholder="例如: /ai-adp/dev/" disabled={!!editingEnv} />
+          </Form.Item>
+          <Form.Item name="config_prefix" label="配置前缀" initialValue="config/">
+            <Input placeholder="例如: config/" />
+          </Form.Item>
+          <Form.Item name="gateway_prefix" label="网关服务前缀" initialValue="gw-services/">
+            <Input placeholder="例如: gw-services/" />
+          </Form.Item>
+          <Form.Item name="grpc_prefix" label="gRPC 服务前缀" initialValue="grpc-services/">
+            <Input placeholder="例如: grpc-services/" />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} />

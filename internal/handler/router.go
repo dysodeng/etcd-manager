@@ -14,6 +14,7 @@ type Handlers struct {
 	Cluster      *ClusterHandler
 	User         *UserHandler
 	Audit        *AuditHandler
+	Gateway      *GatewayHandler
 }
 
 func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
@@ -81,5 +82,12 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
 
 		// 审计日志
 		auth.GET("/audit-logs", h.Audit.List)
+
+		// 网关服务管理（viewer 只读，admin 可下线）
+		gateway := auth.Group("/gateway", middleware.RequireAdminForWrite())
+		{
+			gateway.GET("", h.Gateway.List)
+			gateway.PUT("/status", h.Gateway.UpdateStatus)
+		}
 	}
 }

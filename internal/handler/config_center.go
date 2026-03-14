@@ -34,16 +34,28 @@ func (h *ConfigCenterHandler) ListEnvironments(c *gin.Context) {
 
 func (h *ConfigCenterHandler) CreateEnvironment(c *gin.Context) {
 	var req struct {
-		Name        string `json:"name" binding:"required"`
-		KeyPrefix   string `json:"key_prefix" binding:"required"`
-		Description string `json:"description"`
-		SortOrder   int    `json:"sort_order"`
+		Name          string `json:"name" binding:"required"`
+		KeyPrefix     string `json:"key_prefix" binding:"required"`
+		ConfigPrefix  string `json:"config_prefix"`
+		GatewayPrefix string `json:"gateway_prefix"`
+		GrpcPrefix    string `json:"grpc_prefix"`
+		Description   string `json:"description"`
+		SortOrder     int    `json:"sort_order"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Fail(c, CodeParamInvalid, err.Error())
 		return
 	}
-	env, err := h.envSvc.Create(c.Request.Context(), req.Name, req.KeyPrefix, req.Description, req.SortOrder)
+	if req.ConfigPrefix == "" {
+		req.ConfigPrefix = "config/"
+	}
+	if req.GatewayPrefix == "" {
+		req.GatewayPrefix = "gw-services/"
+	}
+	if req.GrpcPrefix == "" {
+		req.GrpcPrefix = "grpc-services/"
+	}
+	env, err := h.envSvc.Create(c.Request.Context(), req.Name, req.KeyPrefix, req.ConfigPrefix, req.GatewayPrefix, req.GrpcPrefix, req.Description, req.SortOrder)
 	if err != nil {
 		Fail(c, CodeEnvExists, err.Error())
 		return
@@ -62,16 +74,19 @@ func (h *ConfigCenterHandler) UpdateEnvironment(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name        string `json:"name" binding:"required"`
-		KeyPrefix   string `json:"key_prefix" binding:"required"`
-		Description string `json:"description"`
-		SortOrder   int    `json:"sort_order"`
+		Name          string `json:"name" binding:"required"`
+		KeyPrefix     string `json:"key_prefix" binding:"required"`
+		ConfigPrefix  string `json:"config_prefix"`
+		GatewayPrefix string `json:"gateway_prefix"`
+		GrpcPrefix    string `json:"grpc_prefix"`
+		Description   string `json:"description"`
+		SortOrder     int    `json:"sort_order"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Fail(c, CodeParamInvalid, err.Error())
 		return
 	}
-	if err := h.envSvc.Update(c.Request.Context(), id, req.Name, req.KeyPrefix, req.Description, req.SortOrder); err != nil {
+	if err := h.envSvc.Update(c.Request.Context(), id, req.Name, req.KeyPrefix, req.ConfigPrefix, req.GatewayPrefix, req.GrpcPrefix, req.Description, req.SortOrder); err != nil {
 		Fail(c, CodeInternalError, err.Error())
 		return
 	}

@@ -58,24 +58,30 @@ func (r *EnvironmentRepository) Delete(ctx context.Context, id uuid.UUID) error 
 
 func envToDomain(m *Environment) *domain.Environment {
 	return &domain.Environment{
-		ID:          uuid.MustParse(m.ID),
-		Name:        m.Name,
-		KeyPrefix:   m.KeyPrefix,
-		Description: m.Description,
-		SortOrder:   m.SortOrder,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
+		ID:            uuid.MustParse(m.ID),
+		Name:          m.Name,
+		KeyPrefix:     m.KeyPrefix,
+		ConfigPrefix:  m.ConfigPrefix,
+		GatewayPrefix: m.GatewayPrefix,
+		GrpcPrefix:    m.GrpcPrefix,
+		Description:   m.Description,
+		SortOrder:     m.SortOrder,
+		CreatedAt:     m.CreatedAt,
+		UpdatedAt:     m.UpdatedAt,
 	}
 }
 
 func envToModel(d *domain.Environment) *Environment {
 	return &Environment{
-		ID:          d.ID.String(),
-		Name:        d.Name,
-		KeyPrefix:   d.KeyPrefix,
-		Description: d.Description,
-		SortOrder:   d.SortOrder,
-		CreatedAt:   d.CreatedAt,
-		UpdatedAt:   d.UpdatedAt,
+		ID:            d.ID.String(),
+		Name:          d.Name,
+		KeyPrefix:     d.KeyPrefix,
+		ConfigPrefix:  d.ConfigPrefix,
+		GatewayPrefix: d.GatewayPrefix,
+		GrpcPrefix:    d.GrpcPrefix,
+		Description:   d.Description,
+		SortOrder:     d.SortOrder,
+		CreatedAt:     d.CreatedAt,
+		UpdatedAt:     d.UpdatedAt,
 	}
 }

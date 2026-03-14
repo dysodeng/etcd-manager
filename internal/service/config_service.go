@@ -45,14 +45,15 @@ func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]Con
 	if err != nil {
 		return nil, fmt.Errorf("environment not found: %s", envName)
 	}
-	fullPrefix := env.KeyPrefix + prefix
+	configBase := env.KeyPrefix + env.ConfigPrefix
+	fullPrefix := configBase + prefix
 	resp, err := s.etcdClient.GetWithPrefix(ctx, fullPrefix, 0)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]ConfigItem, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		shortKey := strings.TrimPrefix(string(kv.Key), env.KeyPrefix)
+		shortKey := strings.TrimPrefix(string(kv.Key), configBase)
 		items = append(items, ConfigItem{Key: shortKey, Value: string(kv.Value)})
 	}
 	return items, nil
@@ -63,7 +64,7 @@ func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
 	}
-	fullKey := env.KeyPrefix + key
+	fullKey := env.KeyPrefix + env.ConfigPrefix + key
 	existing, err := s.etcdClient.Get(ctx, fullKey)
 	if err != nil {
 		return err
@@ -91,7 +92,7 @@ func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
 	}
-	fullKey := env.KeyPrefix + key
+	fullKey := env.KeyPrefix + env.ConfigPrefix + key
 	existing, err := s.etcdClient.Get(ctx, fullKey)
 	if err != nil {
 		return err
@@ -121,7 +122,7 @@ func (s *ConfigService) Delete(ctx context.Context, envName, key string, operato
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
 	}
-	fullKey := env.KeyPrefix + key
+	fullKey := env.KeyPrefix + env.ConfigPrefix + key
 	existing, err := s.etcdClient.Get(ctx, fullKey)
 	if err != nil {
 		return err
@@ -202,7 +203,7 @@ func (s *ConfigService) Import(ctx context.Context, envName string, data []byte,
 		return nil, fmt.Errorf("environment not found: %s", envName)
 	}
 	for key, value := range configs {
-		fullKey := env.KeyPrefix + key
+		fullKey := env.KeyPrefix + env.ConfigPrefix + key
 		existing, _ := s.etcdClient.Get(ctx, fullKey)
 		action := "create"
 		var prevValue string

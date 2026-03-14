@@ -19,15 +19,18 @@ func NewEnvironmentService(envRepo domain.EnvironmentRepository, etcdClient *etc
 	return &EnvironmentService{envRepo: envRepo, etcdClient: etcdClient}
 }
 
-func (s *EnvironmentService) Create(ctx context.Context, name, keyPrefix, description string, sortOrder int) (*domain.Environment, error) {
+func (s *EnvironmentService) Create(ctx context.Context, name, keyPrefix, configPrefix, gatewayPrefix, grpcPrefix, description string, sortOrder int) (*domain.Environment, error) {
 	if _, err := s.envRepo.GetByName(ctx, name); err == nil {
 		return nil, errors.New("environment already exists")
 	}
 	env := &domain.Environment{
-		Name:        name,
-		KeyPrefix:   keyPrefix,
-		Description: description,
-		SortOrder:   sortOrder,
+		Name:          name,
+		KeyPrefix:     keyPrefix,
+		ConfigPrefix:  configPrefix,
+		GatewayPrefix: gatewayPrefix,
+		GrpcPrefix:    grpcPrefix,
+		Description:   description,
+		SortOrder:     sortOrder,
 	}
 	if err := s.envRepo.Create(ctx, env); err != nil {
 		return nil, err
@@ -39,13 +42,16 @@ func (s *EnvironmentService) List(ctx context.Context) ([]domain.Environment, er
 	return s.envRepo.List(ctx)
 }
 
-func (s *EnvironmentService) Update(ctx context.Context, id uuid.UUID, name, keyPrefix, description string, sortOrder int) error {
+func (s *EnvironmentService) Update(ctx context.Context, id uuid.UUID, name, keyPrefix, configPrefix, gatewayPrefix, grpcPrefix, description string, sortOrder int) error {
 	env, err := s.envRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	env.Name = name
 	env.KeyPrefix = keyPrefix
+	env.ConfigPrefix = configPrefix
+	env.GatewayPrefix = gatewayPrefix
+	env.GrpcPrefix = grpcPrefix
 	env.Description = description
 	env.SortOrder = sortOrder
 	return s.envRepo.Update(ctx, env)

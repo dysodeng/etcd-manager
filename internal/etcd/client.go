@@ -55,6 +55,10 @@ func (c *Client) Put(ctx context.Context, key, value string) (*clientv3.PutRespo
 	return c.cli.Put(ctx, key, value)
 }
 
+func (c *Client) PutWithLease(ctx context.Context, key, value string, leaseID clientv3.LeaseID) (*clientv3.PutResponse, error) {
+	return c.cli.Put(ctx, key, value, clientv3.WithLease(leaseID))
+}
+
 func (c *Client) Delete(ctx context.Context, key string) (*clientv3.DeleteResponse, error) {
 	return c.cli.Delete(ctx, key)
 }

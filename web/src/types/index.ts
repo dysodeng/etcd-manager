@@ -25,6 +25,9 @@ export interface Environment {
   id: string
   name: string
   key_prefix: string
+  config_prefix: string
+  gateway_prefix: string
+  grpc_prefix: string
   description: string
   sort_order: number
   created_at: string
@@ -120,6 +123,9 @@ export interface ImportResult {
 export interface EnvironmentCreateRequest {
   name: string
   key_prefix: string
+  config_prefix?: string
+  gateway_prefix?: string
+  grpc_prefix?: string
   description?: string
   sort_order?: number
 }
@@ -174,4 +180,25 @@ export interface WatchEvent {
   key: string
   value?: string
   revision: number
+}
+
+// Gateway
+export interface ServiceInstance {
+  id: string
+  service_name: string
+  host: string
+  port: number
+  weight: number
+  version: string
+  status: 'up' | 'down'
+  registered_at: string
+  metadata: Record<string, string>
+}
+
+export interface ServiceGroup {
+  service_name: string
+  instance_count: number
+  healthy_count: number
+  unhealthy_count: number
+  instances: ServiceInstance[]
 }

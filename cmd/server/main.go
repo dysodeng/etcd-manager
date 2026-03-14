@@ -84,6 +84,7 @@ func main() {
 	kvSvc := service.NewKVService(etcdClient)
 	configSvc := service.NewConfigService(etcdClient, envRepo, revisionRepo, txManager)
 	clusterSvc := service.NewClusterService(etcdClient)
+	gatewaySvc := service.NewGatewayService(etcdClient)
 
 	handlers := &handler.Handlers{
 		Auth:         handler.NewAuthHandler(authSvc, userSvc),
@@ -93,6 +94,7 @@ func main() {
 		Cluster:      handler.NewClusterHandler(clusterSvc),
 		User:         handler.NewUserHandler(userSvc, auditSvc),
 		Audit:        handler.NewAuditHandler(auditSvc),
+		Gateway:      handler.NewGatewayHandler(gatewaySvc, auditSvc),
 	}
 
 	r := gin.Default()

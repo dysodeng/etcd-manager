@@ -18,13 +18,16 @@ type User struct {
 func (User) TableName() string { return "users" }
 
 type Environment struct {
-	ID          uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
-	Name        string    `gorm:"uniqueIndex;size:64;not null"`
-	KeyPrefix   string    `gorm:"size:255;not null"`
-	Description string    `gorm:"size:255"`
-	SortOrder   int       `gorm:"default:0"`
-	CreatedAt   time.Time `gorm:"type:timestamp(0) without time zone;not null;index"`
-	UpdatedAt   time.Time `gorm:"type:timestamp(0) without time zone;not null"`
+	ID            uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
+	Name          string    `gorm:"uniqueIndex;size:64;not null"`
+	KeyPrefix     string    `gorm:"size:255;not null"`
+	ConfigPrefix  string    `gorm:"size:255;not null;default:config/"`
+	GatewayPrefix string    `gorm:"size:255;not null;default:gw-services/"`
+	GrpcPrefix    string    `gorm:"size:255;not null;default:grpc-services/"`
+	Description   string    `gorm:"size:255"`
+	SortOrder     int       `gorm:"default:0"`
+	CreatedAt     time.Time `gorm:"type:timestamp(0) without time zone;not null;index"`
+	UpdatedAt     time.Time `gorm:"type:timestamp(0) without time zone;not null"`
 }
 
 func (Environment) TableName() string { return "environments" }

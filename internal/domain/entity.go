@@ -16,13 +16,16 @@ type User struct {
 }
 
 type Environment struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	KeyPrefix   string    `json:"key_prefix"`
-	Description string    `json:"description"`
-	SortOrder   int       `json:"sort_order"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	KeyPrefix     string    `json:"key_prefix"`
+	ConfigPrefix  string    `json:"config_prefix"`
+	GatewayPrefix string    `json:"gateway_prefix"`
+	GrpcPrefix    string    `json:"grpc_prefix"`
+	Description   string    `json:"description"`
+	SortOrder     int       `json:"sort_order"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type ConfigRevision struct {
