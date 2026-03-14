@@ -4,6 +4,11 @@ export function formatTime(t: string): string {
   return dayjs(t).format('YYYY-MM-DD HH:mm:ss')
 }
 
+export function formatUnixTime(ts: number): string {
+  if (!ts) return '-'
+  return dayjs.unix(ts).format('YYYY-MM-DD HH:mm:ss')
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

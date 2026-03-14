@@ -204,3 +204,25 @@ export interface ServiceGroup {
   unhealthy_count: number
   instances: ServiceInstance[]
 }
+
+// gRPC Service
+export interface GrpcInstance {
+  service_name: string
+  version: string
+  address: string
+  env: string
+  weight: number
+  tags: string[]
+  status: 'up' | 'down'
+  register_time: number
+  instance_id: string
+  properties: Record<string, string>
+}
+
+export interface GrpcServiceGroup {
+  service_name: string
+  instance_count: number
+  healthy_count: number
+  unhealthy_count: number
+  instances: GrpcInstance[]
+}
