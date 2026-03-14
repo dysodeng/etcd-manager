@@ -15,6 +15,7 @@ type Handlers struct {
 	User         *UserHandler
 	Audit        *AuditHandler
 	Gateway      *GatewayHandler
+	Grpc         *GrpcHandler
 }
 
 func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
@@ -88,6 +89,13 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
 		{
 			gateway.GET("", h.Gateway.List)
 			gateway.PUT("/status", h.Gateway.UpdateStatus)
+		}
+
+		// gRPC 服务管理（viewer 只读，admin 可下线）
+		grpc := auth.Group("/grpc", middleware.RequireAdminForWrite())
+		{
+			grpc.GET("", h.Grpc.List)
+			grpc.PUT("/status", h.Grpc.UpdateStatus)
 		}
 	}
 }
