@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Input, Space, Modal, Form, message, Popconfirm } from 'antd'
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { Table, Button, Input, Space, Modal, Form, message, Popconfirm, Segmented } from 'antd'
+import { PlusOutlined, ReloadOutlined, SearchOutlined, UnorderedListOutlined, ApartmentOutlined } from '@ant-design/icons'
 import type { KVItem } from '@/types'
 import { kvApi } from '@/api/kv'
 import { useAuthStore } from '@/stores/auth'
 import MonacoEditor from '@/components/MonacoEditor'
+import KVTreeView from './KVTreeView'
+import { buildKVTree } from './buildKVTree'
 
 export default function KVPage() {
   const [items, setItems] = useState<KVItem[]>([])
@@ -15,6 +17,7 @@ export default function KVPage() {
   const [form] = Form.useForm()
   const [editorValue, setEditorValue] = useState('')
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list')
 
   const fetchData = async (p?: string) => {
     setLoading(true)
@@ -103,16 +106,35 @@ export default function KVPage() {
           style={{ width: 300 }}
         />
         <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+        <Segmented
+          value={viewMode}
+          onChange={(v) => setViewMode(v as 'list' | 'tree')}
+          options={[
+            { value: 'list', icon: <UnorderedListOutlined /> },
+            { value: 'tree', icon: <ApartmentOutlined /> },
+          ]}
+        />
         {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}
       </Space>
-      <Table
-        rowKey="key"
-        columns={columns}
-        dataSource={items}
-        loading={loading}
-        pagination={false}
-        size="middle"
-      />
+
+      {viewMode === 'list' ? (
+        <Table
+          rowKey="key"
+          columns={columns}
+          dataSource={items}
+          loading={loading}
+          pagination={false}
+          size="middle"
+        />
+      ) : (
+        <KVTreeView
+          treeData={buildKVTree(items)}
+          isAdmin={isAdmin}
+          onEdit={openEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
       <Modal
         title={editing ? '编辑 KV' : '新建 KV'}
         open={modalOpen}
