@@ -96,16 +96,19 @@ export default function KVPage() {
 
   return (
     <>
-      <Space style={{ marginBottom: 16 }}>
-        <Input
-          prefix={<SearchOutlined />}
-          placeholder="Key 前缀"
-          value={prefix}
-          onChange={(e) => setPrefix(e.target.value)}
-          onPressEnter={() => fetchData()}
-          style={{ width: 300 }}
-        />
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Space>
+          <Input
+            prefix={<SearchOutlined />}
+            placeholder="Key 前缀"
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
+            onPressEnter={() => fetchData()}
+            style={{ width: 300 }}
+          />
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+          {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}
+        </Space>
         <Segmented
           value={viewMode}
           onChange={(v) => setViewMode(v as 'list' | 'tree')}
@@ -114,8 +117,7 @@ export default function KVPage() {
             { value: 'tree', icon: <ApartmentOutlined /> },
           ]}
         />
-        {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}
-      </Space>
+      </div>
 
       {viewMode === 'list' ? (
         <Table

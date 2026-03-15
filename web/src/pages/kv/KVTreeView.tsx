@@ -36,7 +36,7 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
           fieldNames={{ key: 'key', title: 'title', children: 'children' }}
           showIcon
           icon={renderTreeIcon}
-          defaultExpandAll
+          defaultExpandAll={false}
           onSelect={(_, info) => handleSelect(_, info as unknown as { node: KVTreeNode })}
           selectedKeys={selectedNode ? [selectedNode.key] : []}
         />
@@ -55,7 +55,7 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
             </Descriptions>
 
             <div style={{ marginBottom: 12 }}>
-              <MonacoEditor value={selectedNode.kvItem.value} language="json" readOnly height={360} />
+              <MonacoEditor value={selectedNode.kvItem.value} readOnly height={360} />
             </div>
 
             {isAdmin && (

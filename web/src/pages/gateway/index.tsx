@@ -64,7 +64,7 @@ export default function GatewayPage() {
 
   const instanceColumns = [
     {
-      title: 'ID', dataIndex: 'id', key: 'id',
+      title: '实例ID', dataIndex: 'id', key: 'id',
       render: (id: string) => (
         <span style={{ fontFamily: 'monospace' }}>{id}</span>
       ),
