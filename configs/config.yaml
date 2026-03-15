@@ -4,8 +4,6 @@ server:
 etcd:
   endpoints:
     - "127.0.0.1:2379"
-    - "127.0.0.1:2479"
-    - "127.0.0.1:2579"
   username: ""
   password: ""
   tls:
@@ -19,7 +17,7 @@ database:
   # SQLite 配置
   path: "./data/data.db"
   # PostgreSQL 配置 (driver 为 postgres 时使用)
-  # dsn: "host=localhost port=5432 user=postgres password=postgres dbname=config_center sslmode=disable"
+  # dsn: "host=localhost port=5432 user=postgres password=postgres dbname=config_center sslmode=disable TimeZone=Asia/Shanghai"
 
 jwt:
   secret: "change-me-in-production"

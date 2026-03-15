@@ -1,6 +1,8 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"github.com/spf13/viper"
+)
 
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
@@ -48,7 +50,12 @@ func Load(path string) (*Config, error) {
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
-	viper.BindEnv("jwt.secret", "JWT_SECRET")
+	_ = viper.BindEnv("jwt.secret", "JWT_SECRET")
+	_ = viper.BindEnv("etcd.endpoints", "ETCD_ENDPOINTS")
+	_ = viper.BindEnv("etcd.username", "ETCD_USERNAME")
+	_ = viper.BindEnv("etcd.password", "ETCD_PASSWORD")
+	_ = viper.BindEnv("database.driver", "DB_DRIVER")
+	_ = viper.BindEnv("database.dsn", "DB_DSN")
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, err
