@@ -216,13 +216,13 @@ export default function MainLayout() {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <Sider width={200} theme={isDark ? undefined : 'dark'}>
+      <Sider width={200} theme="dark">
         <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Text strong style={{ color: isDark ? undefined : '#fff', fontSize: 16 }}>ETCD管理中心</Text>
+          <Text strong style={{ color: '#fff', fontSize: 16 }}>ETCD管理中心</Text>
         </div>
         <Menu
           mode="inline"
-          theme={isDark ? undefined : 'dark'}
+          theme="dark"
           selectedKeys={[location.pathname]}
           items={visibleMenuItems}
           onClick={({ key }) => navigate(key)}
