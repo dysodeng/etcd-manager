@@ -19,6 +19,9 @@ import {
   CloudServerOutlined,
   TeamOutlined,
   WarningOutlined,
+  SunOutlined,
+  MoonOutlined,
+  DesktopOutlined,
 } from '@ant-design/icons'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
@@ -27,6 +30,7 @@ import { environmentApi } from '@/api/environment'
 import { syncApi, type EnvSyncStatus } from '@/api/sync'
 import type { Environment, EnvironmentCreateRequest } from '@/types'
 import { menuItemConfigs, getVisibleMenuKeys } from '@/config/menu'
+import { useThemeStore, useIsDark, type ThemeMode } from '@/stores/theme'
 
 const { Sider, Header, Content } = Layout
 const { Text } = Typography
@@ -48,6 +52,7 @@ export default function MainLayout() {
   const { user, fetchProfile, logout } = useAuthStore()
   const { environments, current, fetch: fetchEnvs, setCurrent } = useEnvironmentStore()
   const { token: { colorBgContainer } } = theme.useToken()
+  const isDark = useIsDark()
 
   const [pwdOpen, setPwdOpen] = useState(false)
   const [pwdForm] = Form.useForm()
@@ -243,24 +248,42 @@ export default function MainLayout() {
               </Button>
             )}
           </Space>
-          <Dropdown
-            menu={{
-              items: [
-                { key: 'password', icon: <SettingOutlined />, label: '修改密码' },
-                { key: 'logout', icon: <LogoutOutlined />, label: '退出登录' },
-              ],
-              onClick: ({ key }) => {
-                if (key === 'logout') handleLogout()
-                if (key === 'password') setPwdOpen(true)
-              },
-            }}
-          >
+          <Space>
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'light', icon: <SunOutlined />, label: '浅色' },
+                  { key: 'dark', icon: <MoonOutlined />, label: '深色' },
+                  { key: 'system', icon: <DesktopOutlined />, label: '跟随系统' },
+                ],
+                selectedKeys: [useThemeStore.getState().mode],
+                onClick: ({ key }) => useThemeStore.getState().setMode(key as ThemeMode),
+              }}
+            >
+              <Button
+                type="text"
+                icon={isDark ? <MoonOutlined /> : <SunOutlined />}
+              />
+            </Dropdown>
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'password', icon: <SettingOutlined />, label: '修改密码' },
+                  { key: 'logout', icon: <LogoutOutlined />, label: '退出登录' },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'logout') handleLogout()
+                  if (key === 'password') setPwdOpen(true)
+                },
+              }}
+            >
             <Space style={{ cursor: 'pointer' }}>
               <UserOutlined />
               <Text>{user?.username}</Text>
               <Tag color={user?.is_super ? 'red' : 'blue'}>{userLabel}</Tag>
             </Space>
-          </Dropdown>
+            </Dropdown>
+          </Space>
         </Header>
         {syncStatuses.length > 0 && (
           <Alert

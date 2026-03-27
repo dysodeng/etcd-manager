@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Form, Input, Button, Typography, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/auth'
+import { useIsDark } from '@/stores/theme'
 
 const { Title } = Typography
 
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const [loading, setLoading] = useState(false)
+  const isDark = useIsDark()
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true)
@@ -24,7 +26,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#141414' : '#f0f2f5' }}>
       <Card style={{ width: 400 }}>
         <Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>ETCD管理中心</Title>
         <Form onFinish={onFinish} size="large">

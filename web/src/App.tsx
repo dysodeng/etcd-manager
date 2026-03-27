@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, theme as antTheme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import MainLayout from '@/layouts/MainLayout'
 import LoginPage from '@/pages/login'
@@ -13,6 +13,7 @@ import GatewayPage from '@/pages/gateway'
 import GrpcPage from '@/pages/grpc'
 import { useAuthStore } from '@/stores/auth'
 import { getDefaultRoute } from '@/config/menu'
+import { useIsDark } from '@/stores/theme'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -26,8 +27,15 @@ function DefaultRedirect() {
 }
 
 export default function App() {
+  const isDark = useIsDark()
+
   return (
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider
+      locale={zhCN}
+      theme={{
+        algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+      }}
+    >
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
