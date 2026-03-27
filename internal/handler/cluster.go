@@ -31,3 +31,21 @@ func (h *ClusterHandler) Metrics(c *gin.Context) {
 	}
 	OK(c, metrics)
 }
+
+func (h *ClusterHandler) MemberStatuses(c *gin.Context) {
+	statuses, err := h.clusterSvc.MemberStatuses(c.Request.Context())
+	if err != nil {
+		Fail(c, CodeEtcdConnFailed, err.Error())
+		return
+	}
+	OK(c, statuses)
+}
+
+func (h *ClusterHandler) Alarms(c *gin.Context) {
+	alarms, err := h.clusterSvc.Alarms(c.Request.Context())
+	if err != nil {
+		Fail(c, CodeEtcdConnFailed, err.Error())
+		return
+	}
+	OK(c, alarms)
+}

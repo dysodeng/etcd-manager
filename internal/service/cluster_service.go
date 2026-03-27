@@ -70,6 +70,7 @@ type ClusterMetrics struct {
 	ClusterID   string          `json:"cluster_id"`
 	Version     string          `json:"version"`
 	DBSize      int64           `json:"db_size"`
+	DBSizeInUse int64           `json:"db_size_in_use"`
 	LeaderName  string          `json:"leader_name"`
 	MemberCount int             `json:"member_count"`
 	Health      map[string]bool `json:"health"`
@@ -105,6 +106,7 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		if metrics.Version == "" {
 			metrics.Version = sr.Version
 			metrics.DBSize = sr.DbSize
+			metrics.DBSizeInUse = sr.DbSizeInUse
 			if name, ok := memberNames[sr.Leader]; ok && name != "" {
 				metrics.LeaderName = name
 			} else {
@@ -113,4 +115,95 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		}
 	}
 	return metrics, nil
+}
+
+// MemberStatus 单个成员的详细状态
+type MemberStatus struct {
+	Name             string `json:"name"`
+	Endpoint         string `json:"endpoint"`
+	DBSize           int64  `json:"db_size"`
+	DBSizeInUse      int64  `json:"db_size_in_use"`
+	Version          string `json:"version"`
+	RaftIndex        uint64 `json:"raft_index"`
+	RaftTerm         uint64 `json:"raft_term"`
+	RaftAppliedIndex uint64 `json:"raft_applied_index"`
+	IsLearner        bool   `json:"is_learner"`
+	IsLeader         bool   `json:"is_leader"`
+}
+
+func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	memberResp, err := s.etcdClient.MemberList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 建立 client URL → member 映射
+	type memberMeta struct {
+		Name      string
+		IsLearner bool
+	}
+	urlToMember := make(map[string]memberMeta)
+	for _, m := range memberResp.Members {
+		for _, u := range m.ClientURLs {
+			urlToMember[u] = memberMeta{Name: m.Name, IsLearner: m.IsLearner}
+		}
+	}
+
+	var results []MemberStatus
+	endpoints := s.etcdClient.Endpoints()
+	for _, ep := range endpoints {
+		sr, err := s.etcdClient.Status(ctx, ep)
+		if err != nil {
+			continue
+		}
+		meta := urlToMember[ep]
+		results = append(results, MemberStatus{
+			Name:             meta.Name,
+			Endpoint:         ep,
+			DBSize:           sr.DbSize,
+			DBSizeInUse:      sr.DbSizeInUse,
+			Version:          sr.Version,
+			RaftIndex:        sr.RaftIndex,
+			RaftTerm:         sr.RaftTerm,
+			RaftAppliedIndex: sr.RaftAppliedIndex,
+			IsLearner:        meta.IsLearner,
+			IsLeader:         sr.Leader == sr.Header.MemberId,
+		})
+	}
+	return results, nil
+}
+
+// AlarmInfo 报警信息
+type AlarmInfo struct {
+	MemberID  string `json:"member_id"`
+	AlarmType string `json:"alarm_type"`
+}
+
+func (s *ClusterService) Alarms(ctx context.Context) ([]AlarmInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	resp, err := s.etcdClient.AlarmList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	alarms := make([]AlarmInfo, 0, len(resp.Alarms))
+	for _, a := range resp.Alarms {
+		alarmType := "UNKNOWN"
+		switch a.Alarm {
+		case 1:
+			alarmType = "NOSPACE"
+		case 2:
+			alarmType = "CORRUPT"
+		}
+		alarms = append(alarms, AlarmInfo{
+			MemberID:  fmt.Sprintf("%x", a.MemberID),
+			AlarmType: alarmType,
+		})
+	}
+	return alarms, nil
 }

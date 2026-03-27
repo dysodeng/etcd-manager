@@ -85,6 +85,10 @@ func (c *Client) Status(ctx context.Context, endpoint string) (*clientv3.StatusR
 
 func (c *Client) Endpoints() []string { return c.cli.Endpoints() }
 
+func (c *Client) AlarmList(ctx context.Context) (*clientv3.AlarmResponse, error) {
+	return c.cli.AlarmList(ctx)
+}
+
 func newTLSConfig(cfg config.TLSConfig) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {

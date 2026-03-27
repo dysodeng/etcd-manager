@@ -210,9 +210,28 @@ export interface ClusterMetrics {
   cluster_id: string
   leader_name: string
   db_size: number
+  db_size_in_use: number
   member_count: number
   version: string
   health: Record<string, boolean>
+}
+
+export interface MemberStatus {
+  name: string
+  endpoint: string
+  db_size: number
+  db_size_in_use: number
+  version: string
+  raft_index: number
+  raft_term: number
+  raft_applied_index: number
+  is_learner: boolean
+  is_leader: boolean
+}
+
+export interface AlarmInfo {
+  member_id: string
+  alarm_type: string
 }
 
 // Audit filter

@@ -98,6 +98,8 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, roleRepo domai
 		{
 			cluster.GET("/status", h.Cluster.Status)
 			cluster.GET("/metrics", h.Cluster.Metrics)
+			cluster.GET("/member-statuses", h.Cluster.MemberStatuses)
+			cluster.GET("/alarms", h.Cluster.Alarms)
 		}
 
 		// 用户管理
