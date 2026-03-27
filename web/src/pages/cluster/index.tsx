@@ -105,21 +105,29 @@ export default function ClusterPage() {
 
       {metrics && (
         <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={4}><Card><Statistic title="集群 ID" value={metrics.cluster_id} /></Card></Col>
-          <Col span={4}><Card><Statistic title="成员数量" value={metrics.member_count} /></Card></Col>
-          <Col span={4}><Card><Statistic title="DB 大小" value={formatBytes(metrics.db_size)} /></Card></Col>
-          <Col span={4}><Card><Statistic title="DB 实际使用" value={formatBytes(metrics.db_size_in_use)} /></Card></Col>
           <Col span={4}>
-            <Card>
-              <div style={{ marginBottom: 4, color: 'rgba(0,0,0,0.45)', fontSize: 14 }}>DB 碎片率</div>
-              <Progress
-                percent={fragPercent}
-                status={fragPercent > 50 ? 'exception' : fragPercent > 30 ? 'active' : 'success'}
-                size="small"
+            <Card style={{ height: '100%' }}>
+              <Statistic
+                title="集群 ID"
+                value={metrics.cluster_id}
+                valueStyle={{ fontSize: 14, wordBreak: 'break-all' }}
               />
             </Card>
           </Col>
-          <Col span={4}><Card><Statistic title="etcd 版本" value={metrics.version} /></Card></Col>
+          <Col span={4}><Card style={{ height: '100%' }}><Statistic title="成员数量" value={metrics.member_count} /></Card></Col>
+          <Col span={4}><Card style={{ height: '100%' }}><Statistic title="DB 大小" value={formatBytes(metrics.db_size)} /></Card></Col>
+          <Col span={4}><Card style={{ height: '100%' }}><Statistic title="DB 实际使用" value={formatBytes(metrics.db_size_in_use)} /></Card></Col>
+          <Col span={4}>
+            <Card style={{ height: '100%' }}>
+              <Statistic
+                title="DB 碎片率"
+                value={fragPercent}
+                suffix="%"
+                valueStyle={{ color: fragPercent > 50 ? '#cf1322' : fragPercent > 30 ? '#faad14' : '#3f8600' }}
+              />
+            </Card>
+          </Col>
+          <Col span={4}><Card style={{ height: '100%' }}><Statistic title="etcd 版本" value={metrics.version} /></Card></Col>
         </Row>
       )}
 
