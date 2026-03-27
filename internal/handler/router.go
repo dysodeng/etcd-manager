@@ -18,6 +18,7 @@ type Handlers struct {
 	Gateway      *GatewayHandler
 	Grpc         *GrpcHandler
 	Role         *RoleHandler
+	Sync         *SyncHandler
 }
 
 func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, roleRepo domain.RoleRepository) {
@@ -48,6 +49,13 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, roleRepo domai
 
 		// 超管转移（仅超级管理员）
 		auth.PUT("/users/:id/transfer-super", middleware.RequireSuper(), h.User.TransferSuper)
+
+		// 配置同步检测与恢复（仅超级管理员）
+		sync := auth.Group("/sync", middleware.RequireSuper())
+		{
+			sync.GET("/check", h.Sync.Check)
+			sync.POST("/restore", h.Sync.Restore)
+		}
 
 		// KV 管理
 		kv := auth.Group("/kv", middleware.RequirePermission("kv", roleRepo), middleware.FilterEnvironments(roleRepo))

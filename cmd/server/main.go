@@ -101,6 +101,7 @@ func main() {
 	clusterSvc := service.NewClusterService(etcdClient)
 	gatewaySvc := service.NewGatewayService(etcdClient)
 	grpcSvc := service.NewGrpcServiceManager(etcdClient)
+	syncSvc := service.NewSyncService(etcdClient, envRepo, revisionRepo)
 
 	handlers := &handler.Handlers{
 		Auth:         handler.NewAuthHandler(authSvc),
@@ -113,6 +114,7 @@ func main() {
 		Gateway:      handler.NewGatewayHandler(gatewaySvc, auditSvc),
 		Grpc:         handler.NewGrpcHandler(grpcSvc, auditSvc),
 		Role:         handler.NewRoleHandler(roleSvc, auditSvc),
+		Sync:         handler.NewSyncHandler(syncSvc, auditSvc),
 	}
 
 	r := gin.Default()

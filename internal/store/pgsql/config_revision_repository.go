@@ -49,6 +49,23 @@ func (r *ConfigRevisionRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 	return revToDomain(&m), nil
 }
 
+func (r *ConfigRevisionRepository) ListLatestByEnvironment(ctx context.Context, envID uuid.UUID) ([]domain.ConfigRevision, error) {
+	var models []ConfigRevision
+	// 使用 DISTINCT ON (PostgreSQL 特有语法) 取每个 key 的最新记录
+	err := GetDB(ctx, r.db).
+		Raw(`SELECT DISTINCT ON (key) * FROM config_revisions
+		     WHERE environment_id = ? ORDER BY key, created_at DESC`, envID).
+		Scan(&models).Error
+	if err != nil {
+		return nil, err
+	}
+	revs := make([]domain.ConfigRevision, len(models))
+	for i := range models {
+		revs[i] = *revToDomain(&models[i])
+	}
+	return revs, nil
+}
+
 func revToDomain(m *ConfigRevision) *domain.ConfigRevision {
 	return &domain.ConfigRevision{
 		ID:            m.ID,

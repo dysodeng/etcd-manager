@@ -43,6 +43,28 @@ func (r *ConfigRevisionRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 	return revToDomain(&m), nil
 }
 
+func (r *ConfigRevisionRepository) ListLatestByEnvironment(ctx context.Context, envID uuid.UUID) ([]domain.ConfigRevision, error) {
+	var models []ConfigRevision
+	// 子查询：每个 key 的最新 created_at
+	subQuery := GetDB(ctx, r.db).Model(&ConfigRevision{}).
+		Select("key, MAX(created_at) as max_created").
+		Where("environment_id = ?", envID.String()).
+		Group("key")
+
+	err := GetDB(ctx, r.db).
+		Where("environment_id = ?", envID.String()).
+		Where("(key, created_at) IN (?)", subQuery).
+		Find(&models).Error
+	if err != nil {
+		return nil, err
+	}
+	revs := make([]domain.ConfigRevision, len(models))
+	for i := range models {
+		revs[i] = *revToDomain(&models[i])
+	}
+	return revs, nil
+}
+
 func revToDomain(m *ConfigRevision) *domain.ConfigRevision {
 	return &domain.ConfigRevision{
 		ID:            uuid.MustParse(m.ID),

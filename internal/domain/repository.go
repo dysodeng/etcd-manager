@@ -45,6 +45,8 @@ type ConfigRevisionRepository interface {
 	Create(ctx context.Context, rev *ConfigRevision) error
 	ListByKey(ctx context.Context, envID uuid.UUID, key string, page, pageSize int) ([]ConfigRevision, int64, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*ConfigRevision, error)
+	// ListLatestByEnvironment 获取指定环境下每个 key 的最新一条 revision
+	ListLatestByEnvironment(ctx context.Context, envID uuid.UUID) ([]ConfigRevision, error)
 }
 
 type AuditLogRepository interface {

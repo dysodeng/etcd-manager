@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Layout, Menu, Select, Dropdown, Space, Typography, theme,
-  Modal, Form, Input, Button, Table, Popconfirm, InputNumber, message, Tag,
+  Modal, Form, Input, Button, Table, Popconfirm, InputNumber, message, Tag, Alert, Checkbox,
 } from 'antd'
 import {
   DatabaseOutlined,
@@ -18,11 +18,13 @@ import {
   ApiOutlined,
   CloudServerOutlined,
   TeamOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import { authApi } from '@/api/auth'
 import { environmentApi } from '@/api/environment'
+import { syncApi, type EnvSyncStatus } from '@/api/sync'
 import type { Environment, EnvironmentCreateRequest } from '@/types'
 import { menuItemConfigs, getVisibleMenuKeys } from '@/config/menu'
 
@@ -56,10 +58,26 @@ export default function MainLayout() {
   const [editingEnv, setEditingEnv] = useState<Environment | null>(null)
   const [envForm] = Form.useForm()
 
+  // 同步检测
+  const [syncStatuses, setSyncStatuses] = useState<EnvSyncStatus[]>([])
+  const [syncModalOpen, setSyncModalOpen] = useState(false)
+  const [selectedSyncEnvs, setSelectedSyncEnvs] = useState<string[]>([])
+  const [restoring, setRestoring] = useState(false)
+
   useEffect(() => {
     fetchProfile()
     fetchEnvs()
   }, [fetchProfile, fetchEnvs])
+
+  // 超管登录后自动检测同步状态
+  useEffect(() => {
+    if (user?.is_super) {
+      syncApi.check().then((statuses) => {
+        const needRestore = statuses.filter(s => s.need_restore)
+        setSyncStatuses(needRestore)
+      }).catch(() => { /* ignore */ })
+    }
+  }, [user?.is_super])
 
   // 根据权限过滤菜单
   const visibleKeys = getVisibleMenuKeys(user)
@@ -139,6 +157,35 @@ export default function MainLayout() {
 
   const canManageEnv = canWrite(user, 'environments')
 
+  const openSyncModal = () => {
+    setSelectedSyncEnvs(syncStatuses.map(s => s.environment_id))
+    setSyncModalOpen(true)
+  }
+
+  const handleRestore = async () => {
+    if (selectedSyncEnvs.length === 0) {
+      message.warning('请选择要恢复的环境')
+      return
+    }
+    setRestoring(true)
+    try {
+      const results = await syncApi.restore(selectedSyncEnvs)
+      const totalSuccess = results.reduce((sum, r) => sum + r.success, 0)
+      const totalFailed = results.reduce((sum, r) => sum + (r.failed?.length ?? 0), 0)
+      if (totalFailed > 0) {
+        message.warning(`恢复完成：成功 ${totalSuccess} 个，失败 ${totalFailed} 个`)
+      } else {
+        message.success(`恢复完成：共 ${totalSuccess} 个配置`)
+      }
+      setSyncModalOpen(false)
+      setSyncStatuses([])
+    } catch (err: unknown) {
+      message.error(err instanceof Error ? err.message : '恢复失败')
+    } finally {
+      setRestoring(false)
+    }
+  }
+
   const envColumns = [
     { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
     { title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix', width: 140 },
@@ -215,6 +262,22 @@ export default function MainLayout() {
             </Space>
           </Dropdown>
         </Header>
+        {syncStatuses.length > 0 && (
+          <Alert
+            message={`检测到 ${syncStatuses.length} 个环境的配置在当前 etcd 集群中不存在，可能需要恢复`}
+            type="warning"
+            showIcon
+            icon={<WarningOutlined />}
+            style={{ margin: '8px 16px 0' }}
+            action={
+              <Button size="small" type="primary" onClick={openSyncModal}>
+                查看详情
+              </Button>
+            }
+            closable
+            onClose={() => setSyncStatuses([])}
+          />
+        )}
         <Content style={{ margin: 16, padding: 24, background: colorBgContainer, borderRadius: 8, overflow: 'auto' }}>
           <Outlet />
         </Content>
@@ -302,6 +365,31 @@ export default function MainLayout() {
             <InputNumber min={0} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 配置恢复 */}
+      <Modal
+        title="配置恢复"
+        open={syncModalOpen}
+        onOk={handleRestore}
+        onCancel={() => setSyncModalOpen(false)}
+        confirmLoading={restoring}
+        okText="恢复选中环境"
+      >
+        <p style={{ marginBottom: 16 }}>
+          以下环境在数据库中有配置记录，但当前 etcd 集群中没有对应数据。选择要恢复的环境：
+        </p>
+        <Checkbox.Group
+          value={selectedSyncEnvs}
+          onChange={(values) => setSelectedSyncEnvs(values as string[])}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+        >
+          {syncStatuses.map((s) => (
+            <Checkbox key={s.environment_id} value={s.environment_id}>
+              {s.environment_name}（数据库中 {s.db_key_count} 个配置）
+            </Checkbox>
+          ))}
+        </Checkbox.Group>
       </Modal>
     </Layout>
   )
