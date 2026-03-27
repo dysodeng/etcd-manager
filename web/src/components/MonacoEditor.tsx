@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Modal, Button, Tooltip } from 'antd'
 import { ExpandOutlined, CompressOutlined } from '@ant-design/icons'
 import Editor, { type EditorProps } from '@monaco-editor/react'
-import { useIsDark } from '@/stores/theme'
 
 function detectLanguage(value: string): string {
   const trimmed = value.trimStart()
@@ -25,8 +24,6 @@ interface Props {
 
 export default function MonacoEditor({ value, onChange, language, height = 400, readOnly = false }: Props) {
   const lang = language ?? detectLanguage(value)
-  const isDark = useIsDark()
-  const editorTheme = isDark ? 'vs-dark' : 'light'
   const [expanded, setExpanded] = useState(false)
 
   const options: EditorProps['options'] = {
@@ -53,7 +50,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
           value={value}
           onChange={(v) => onChange?.(v ?? '')}
           options={options}
-          theme={editorTheme}
+          theme="vs-dark"
         />
         <Tooltip title="展开编辑器">
           <Button
@@ -66,8 +63,8 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
               top: 4,
               right: 16,
               zIndex: 10,
-              color: isDark ? '#ccc' : '#666',
-              background: isDark ? 'rgba(30,30,30,0.8)' : 'rgba(255,255,255,0.8)',
+              color: '#ccc',
+              background: 'rgba(30,30,30,0.8)',
             }}
           />
         </Tooltip>
@@ -94,7 +91,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
           value={value}
           onChange={(v) => onChange?.(v ?? '')}
           options={expandedOptions}
-          theme={editorTheme}
+          theme="vs-dark"
         />
       </Modal>
     </>

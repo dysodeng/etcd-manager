@@ -243,7 +243,7 @@ export default function MainLayout() {
               placeholder="选择环境"
             />
             {canManageEnv && (
-              <Button size="small" icon={<SettingOutlined />} onClick={() => setEnvOpen(true)}>
+              <Button icon={<SettingOutlined />} onClick={() => setEnvOpen(true)}>
                 管理环境
               </Button>
             )}
