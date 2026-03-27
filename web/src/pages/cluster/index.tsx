@@ -56,7 +56,10 @@ export default function ClusterPage() {
     ? Object.entries(metrics.health).map(([endpoint, healthy]) => ({ endpoint, healthy }))
     : []
 
-  // DB 碎片率
+  // DB 碎片率：etcd 使用 BoltDB 存储，删除/更新 key 后旧空间不会立即回收，
+  // 导致 DB 文件大小 > 实际数据量。碎片率 = (DB总大小 - 实际使用) / DB总大小。
+  // 碎片率过高意味着磁盘浪费，备份/快照变大、恢复变慢。
+  // 优化方式：执行 etcdctl defrag 压缩数据库（会短暂阻塞该节点，建议逐节点执行）。
   const fragPercent = metrics && metrics.db_size > 0
     ? Math.round((1 - metrics.db_size_in_use / metrics.db_size) * 100)
     : 0
@@ -156,6 +159,9 @@ export default function ClusterPage() {
               { title: 'Peer URLs', dataIndex: 'peer_urls', key: 'peer_urls', render: (urls: string[]) => urls.join(', ') },
               { title: 'Client URLs', dataIndex: 'client_urls', key: 'client_urls', render: (urls: string[]) => urls.join(', ') },
               {
+                // 成员角色：
+                // Voter - 正式投票成员，参与 Raft 共识（选举 Leader、确认写入），集群需要多数 Voter 存活才能工作
+                // Learner - 只读追随者，同步数据但不参与投票，用于安全扩容（先追数据再提升为 Voter）
                 title: '角色', key: 'role', width: 100,
                 render: (_: unknown, record: { is_learner: boolean }) =>
                   record.is_learner ? <Tag icon={<BookOutlined />} color="orange">Learner</Tag> : <Tag color="green">Voter</Tag>,
@@ -195,8 +201,11 @@ export default function ClusterPage() {
                   return <Progress percent={pct} size="small" status={pct > 50 ? 'exception' : 'success'} />
                 },
               },
+              // Raft Index - Raft 日志最新条目索引，代表集群收到的写操作总序号
               { title: 'Raft Index', dataIndex: 'raft_index', key: 'raft_index', width: 110 },
+              // Raft Term - Raft 选举任期号，每次 Leader 选举 +1，Term 增长过快可能说明网络不稳定
               { title: 'Raft Term', dataIndex: 'raft_term', key: 'raft_term', width: 100 },
+              // Applied Index - 已应用到状态机的日志索引，正常时应接近 Raft Index，差距大说明节点落后
               { title: 'Applied Index', dataIndex: 'raft_applied_index', key: 'raft_applied_index', width: 120 },
             ]}
           />
