@@ -7,15 +7,44 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
-	Username     string    `gorm:"uniqueIndex;size:64;not null"`
-	PasswordHash string    `gorm:"size:255;not null"`
-	Role         string    `gorm:"size:16;not null;default:viewer"`
-	CreatedAt    time.Time `gorm:"type:timestamp(0) without time zone;not null;index"`
-	UpdatedAt    time.Time `gorm:"type:timestamp(0) without time zone;not null"`
+	ID           uuid.UUID  `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
+	Username     string     `gorm:"uniqueIndex;size:64;not null"`
+	PasswordHash string     `gorm:"size:255;not null"`
+	IsSuper      bool       `gorm:"not null;default:false"`
+	RoleID       *uuid.UUID `gorm:"type:uuid"`
+	CreatedAt    time.Time  `gorm:"type:timestamp(0) without time zone;not null;index"`
+	UpdatedAt    time.Time  `gorm:"type:timestamp(0) without time zone;not null"`
 }
 
 func (User) TableName() string { return "users" }
+
+type Role struct {
+	ID          uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
+	Name        string    `gorm:"uniqueIndex;size:64;not null"`
+	Description string    `gorm:"size:255"`
+	CreatedAt   time.Time `gorm:"type:timestamp(0) without time zone;not null;index"`
+	UpdatedAt   time.Time `gorm:"type:timestamp(0) without time zone;not null"`
+}
+
+func (Role) TableName() string { return "roles" }
+
+type RolePermission struct {
+	ID       uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
+	RoleID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_role_module"`
+	Module   string    `gorm:"size:32;not null;uniqueIndex:idx_role_module"`
+	CanRead  bool      `gorm:"not null;default:false"`
+	CanWrite bool      `gorm:"not null;default:false"`
+}
+
+func (RolePermission) TableName() string { return "role_permissions" }
+
+type RoleEnvironment struct {
+	ID            uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`
+	RoleID        uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_role_env"`
+	EnvironmentID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_role_env"`
+}
+
+func (RoleEnvironment) TableName() string { return "role_environments" }
 
 type Environment struct {
 	ID            uuid.UUID `gorm:"type:uuid;not null;default:uuid_generate_v7();primaryKey"`

@@ -18,6 +18,9 @@ func NewDB(dsn string, loc *time.Location) (*gorm.DB, error) {
 	db.Exec("CREATE EXTENSION IF NOT EXISTS pg_uuidv7")
 	if err = db.AutoMigrate(
 		&User{},
+		&Role{},
+		&RolePermission{},
+		&RoleEnvironment{},
 		&Environment{},
 		&ConfigRevision{},
 		&AuditLog{},

@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/dysodeng/etcd-manager/internal/domain"
 	"github.com/dysodeng/etcd-manager/internal/middleware"
 )
 
@@ -16,9 +17,10 @@ type Handlers struct {
 	Audit        *AuditHandler
 	Gateway      *GatewayHandler
 	Grpc         *GrpcHandler
+	Role         *RoleHandler
 }
 
-func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
+func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, roleRepo domain.RoleRepository) {
 	r.Use(middleware.CORS())
 
 	api := r.Group("/api/v1")
@@ -34,8 +36,21 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
 		auth.GET("/auth/profile", h.Auth.Profile)
 		auth.PUT("/auth/password", h.Auth.ChangePassword)
 
-		// KV 管理（viewer 只读，admin 可写）
-		kv := auth.Group("/kv", middleware.RequireAdminForWrite())
+		// 角色管理（仅超级管理员）
+		roles := auth.Group("/roles", middleware.RequireSuper())
+		{
+			roles.GET("", h.Role.List)
+			roles.GET("/:id", h.Role.GetByID)
+			roles.POST("", h.Role.Create)
+			roles.PUT("/:id", h.Role.Update)
+			roles.DELETE("/:id", h.Role.Delete)
+		}
+
+		// 超管转移（仅超级管理员）
+		auth.PUT("/users/:id/transfer-super", middleware.RequireSuper(), h.User.TransferSuper)
+
+		// KV 管理
+		kv := auth.Group("/kv", middleware.RequirePermission("kv", roleRepo), middleware.FilterEnvironments(roleRepo))
 		{
 			kv.GET("", h.KV.Get)
 			kv.POST("", h.KV.Create)
@@ -43,17 +58,19 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
 			kv.DELETE("", h.KV.Delete)
 		}
 
-		// 环境管理（admin only）
-		envAdmin := auth.Group("/environments", middleware.RequireAdmin())
-		{
-			envAdmin.POST("", h.ConfigCenter.CreateEnvironment)
-			envAdmin.PUT("/:id", h.ConfigCenter.UpdateEnvironment)
-			envAdmin.DELETE("/:id", h.ConfigCenter.DeleteEnvironment)
-		}
-		auth.GET("/environments", h.ConfigCenter.ListEnvironments)
+		// 环境列表（所有登录用户可访问，按角色过滤）
+		auth.GET("/environments", middleware.FilterEnvironments(roleRepo), h.ConfigCenter.ListEnvironments)
 
-		// 配置中心（viewer 只读，admin 可写）
-		configs := auth.Group("/configs", middleware.RequireAdminForWrite())
+		// 环境管理（需要 environments 写权限）
+		envWrite := auth.Group("/environments", middleware.RequirePermission("environments", roleRepo))
+		{
+			envWrite.POST("", h.ConfigCenter.CreateEnvironment)
+			envWrite.PUT("/:id", h.ConfigCenter.UpdateEnvironment)
+			envWrite.DELETE("/:id", h.ConfigCenter.DeleteEnvironment)
+		}
+
+		// 配置中心
+		configs := auth.Group("/configs", middleware.RequirePermission("config", roleRepo), middleware.FilterEnvironments(roleRepo))
 		{
 			configs.GET("", h.ConfigCenter.ListConfigs)
 			configs.POST("", h.ConfigCenter.CreateConfig)
@@ -66,14 +83,17 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
 		}
 
 		// Watch（SSE）
-		auth.GET("/watch", h.Watch.Watch)
+		auth.GET("/watch", middleware.RequirePermission("kv", roleRepo), middleware.FilterEnvironments(roleRepo), h.Watch.Watch)
 
 		// 集群信息
-		auth.GET("/cluster/status", h.Cluster.Status)
-		auth.GET("/cluster/metrics", h.Cluster.Metrics)
+		cluster := auth.Group("/cluster", middleware.RequirePermission("cluster", roleRepo))
+		{
+			cluster.GET("/status", h.Cluster.Status)
+			cluster.GET("/metrics", h.Cluster.Metrics)
+		}
 
-		// 用户管理（admin only）
-		users := auth.Group("/users", middleware.RequireAdmin())
+		// 用户管理
+		users := auth.Group("/users", middleware.RequirePermission("users", roleRepo))
 		{
 			users.GET("", h.User.List)
 			users.POST("", h.User.Create)
@@ -82,17 +102,17 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string) {
 		}
 
 		// 审计日志
-		auth.GET("/audit-logs", h.Audit.List)
+		auth.GET("/audit-logs", middleware.RequirePermission("audit_logs", roleRepo), h.Audit.List)
 
-		// 网关服务管理（viewer 只读，admin 可下线）
-		gateway := auth.Group("/gateway", middleware.RequireAdminForWrite())
+		// 网关服务管理
+		gateway := auth.Group("/gateway", middleware.RequirePermission("gateway", roleRepo), middleware.FilterEnvironments(roleRepo))
 		{
 			gateway.GET("", h.Gateway.List)
 			gateway.PUT("/status", h.Gateway.UpdateStatus)
 		}
 
-		// gRPC 服务管理（viewer 只读，admin 可下线）
-		grpc := auth.Group("/grpc", middleware.RequireAdminForWrite())
+		// gRPC 服务管理
+		grpc := auth.Group("/grpc", middleware.RequirePermission("grpc", roleRepo), middleware.FilterEnvironments(roleRepo))
 		{
 			grpc.GET("", h.Grpc.List)
 			grpc.PUT("/status", h.Grpc.UpdateStatus)

@@ -9,14 +9,15 @@ import {
 } from '@ant-design/icons'
 import type { ServiceGroup, ServiceInstance } from '@/types'
 import { gatewayApi } from '@/api/gateway'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
 import { formatTime } from '@/utils'
 
 export default function GatewayPage() {
   const currentEnv = useEnvironmentStore((s) => s.current)
-  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = canWrite(user, 'gateway')
 
   const [groups, setGroups] = useState<ServiceGroup[]>([])
   const [loading, setLoading] = useState(false)

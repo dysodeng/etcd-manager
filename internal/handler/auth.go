@@ -9,11 +9,10 @@ import (
 
 type AuthHandler struct {
 	authSvc *service.AuthService
-	userSvc *service.UserService
 }
 
-func NewAuthHandler(authSvc *service.AuthService, userSvc *service.UserService) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc, userSvc: userSvc}
+func NewAuthHandler(authSvc *service.AuthService) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc}
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -38,16 +37,12 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 	if !ok {
 		return
 	}
-	user, err := h.userSvc.GetByID(c.Request.Context(), userID)
+	profile, err := h.authSvc.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		Fail(c, CodeUnauthorized, "user not found")
 		return
 	}
-	OK(c, gin.H{
-		"id":       user.ID,
-		"username": user.Username,
-		"role":     user.Role,
-	})
+	OK(c, profile)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

@@ -35,13 +35,17 @@ func (h *UserHandler) Create(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
-		Role     string `json:"role" binding:"required"`
+		RoleID   string `json:"role_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Fail(c, CodeParamInvalid, err.Error())
 		return
 	}
-	user, err := h.userSvc.Create(c.Request.Context(), req.Username, req.Password, req.Role)
+	roleID, ok := parseUUID(c, req.RoleID, "role_id")
+	if !ok {
+		return
+	}
+	user, err := h.userSvc.Create(c.Request.Context(), req.Username, req.Password, roleID)
 	if err != nil {
 		if err.Error() == "username already exists" {
 			Fail(c, CodeUserExists, err.Error())
@@ -55,7 +59,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		return
 	}
 	h.auditSvc.Log(c.Request.Context(), operatorID, "create", "user", req.Username, "", c.ClientIP())
-	OK(c, gin.H{"id": user.ID, "username": user.Username, "role": user.Role})
+	OK(c, gin.H{"id": user.ID, "username": user.Username, "is_super": user.IsSuper, "role_id": user.RoleID})
 }
 
 func (h *UserHandler) Update(c *gin.Context) {
@@ -64,13 +68,17 @@ func (h *UserHandler) Update(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Role string `json:"role" binding:"required"`
+		RoleID string `json:"role_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Fail(c, CodeParamInvalid, err.Error())
 		return
 	}
-	if err := h.userSvc.Update(c.Request.Context(), id, req.Role); err != nil {
+	roleID, ok := parseUUID(c, req.RoleID, "role_id")
+	if !ok {
+		return
+	}
+	if err := h.userSvc.Update(c.Request.Context(), id, roleID); err != nil {
 		Fail(c, CodeInternalError, err.Error())
 		return
 	}
@@ -86,5 +94,34 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		Fail(c, CodeInternalError, err.Error())
 		return
 	}
+	OK(c, nil)
+}
+
+// TransferSuper 转移超级管理员权限
+func (h *UserHandler) TransferSuper(c *gin.Context) {
+	targetID, ok := parseUUID(c, c.Param("id"), "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		RoleID string `json:"role_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		Fail(c, CodeParamInvalid, err.Error())
+		return
+	}
+	roleID, ok := parseUUID(c, req.RoleID, "role_id")
+	if !ok {
+		return
+	}
+	currentUserID, ok := getUserID(c)
+	if !ok {
+		return
+	}
+	if err := h.userSvc.TransferSuper(c.Request.Context(), currentUserID, targetID, roleID); err != nil {
+		Fail(c, CodeInternalError, err.Error())
+		return
+	}
+	h.auditSvc.Log(c.Request.Context(), currentUserID, "transfer_super", "user", targetID.String(), "", c.ClientIP())
 	OK(c, nil)
 }

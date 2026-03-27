@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Layout, Menu, Select, Dropdown, Space, Typography, theme,
-  Modal, Form, Input, Button, Table, Popconfirm, InputNumber, message,
+  Modal, Form, Input, Button, Table, Popconfirm, InputNumber, message, Tag,
 } from 'antd'
 import {
   DatabaseOutlined,
@@ -17,25 +17,28 @@ import {
   DeleteOutlined,
   ApiOutlined,
   CloudServerOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import { authApi } from '@/api/auth'
 import { environmentApi } from '@/api/environment'
 import type { Environment, EnvironmentCreateRequest } from '@/types'
+import { menuItemConfigs, getVisibleMenuKeys } from '@/config/menu'
 
 const { Sider, Header, Content } = Layout
 const { Text } = Typography
 
-const menuItems = [
-  { key: '/cluster', icon: <ClusterOutlined />, label: '集群信息' },
-  { key: '/kv', icon: <DatabaseOutlined />, label: 'KV 管理' },
-  { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
-  { key: '/gateway', icon: <ApiOutlined />, label: '网关服务' },
-  { key: '/grpc', icon: <CloudServerOutlined />, label: 'gRPC 服务' },
-  { key: '/users', icon: <UserOutlined />, label: '用户管理', adminOnly: true },
-  { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
-]
+const iconMap: Record<string, React.ReactNode> = {
+  '/cluster': <ClusterOutlined />,
+  '/kv': <DatabaseOutlined />,
+  '/config': <SettingOutlined />,
+  '/gateway': <ApiOutlined />,
+  '/grpc': <CloudServerOutlined />,
+  '/users': <UserOutlined />,
+  '/roles': <TeamOutlined />,
+  '/audit': <AuditOutlined />,
+}
 
 export default function MainLayout() {
   const navigate = useNavigate()
@@ -43,7 +46,6 @@ export default function MainLayout() {
   const { user, fetchProfile, logout } = useAuthStore()
   const { environments, current, fetch: fetchEnvs, setCurrent } = useEnvironmentStore()
   const { token: { colorBgContainer } } = theme.useToken()
-  const isAdmin = user?.role === 'admin'
 
   const [pwdOpen, setPwdOpen] = useState(false)
   const [pwdForm] = Form.useForm()
@@ -59,9 +61,11 @@ export default function MainLayout() {
     fetchEnvs()
   }, [fetchProfile, fetchEnvs])
 
-  const visibleMenuItems = menuItems
-    .filter((item) => !('adminOnly' in item) || isAdmin)
-    .map(({ key, icon, label }) => ({ key, icon, label }))
+  // 根据权限过滤菜单
+  const visibleKeys = getVisibleMenuKeys(user)
+  const visibleMenuItems = menuItemConfigs
+    .filter((item) => visibleKeys.includes(item.key))
+    .map(({ key, label }) => ({ key, icon: iconMap[key], label }))
 
   const handleLogout = () => {
     logout()
@@ -133,6 +137,8 @@ export default function MainLayout() {
     }
   }
 
+  const canManageEnv = canWrite(user, 'environments')
+
   const envColumns = [
     { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
     { title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix', width: 140 },
@@ -141,7 +147,7 @@ export default function MainLayout() {
     { title: 'gRPC 前缀', dataIndex: 'grpc_prefix', key: 'grpc_prefix', width: 130 },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
-    {
+    ...(canManageEnv ? [{
       title: '操作', key: 'actions', width: 120,
       render: (_: unknown, record: Environment) => (
         <Space>
@@ -151,8 +157,10 @@ export default function MainLayout() {
           </Popconfirm>
         </Space>
       ),
-    },
+    }] : []),
   ]
+
+  const userLabel = user?.is_super ? '超级管理员' : (user?.role?.name ?? '无角色')
 
   return (
     <Layout style={{ height: '100vh' }}>
@@ -182,7 +190,7 @@ export default function MainLayout() {
               style={{ width: 160 }}
               placeholder="选择环境"
             />
-            {isAdmin && (
+            {canManageEnv && (
               <Button size="small" icon={<SettingOutlined />} onClick={() => setEnvOpen(true)}>
                 管理环境
               </Button>
@@ -203,7 +211,7 @@ export default function MainLayout() {
             <Space style={{ cursor: 'pointer' }}>
               <UserOutlined />
               <Text>{user?.username}</Text>
-              <Text type="secondary">({user?.role})</Text>
+              <Tag color={user?.is_super ? 'red' : 'blue'}>{userLabel}</Tag>
             </Space>
           </Dropdown>
         </Header>
@@ -256,7 +264,9 @@ export default function MainLayout() {
         width={1000}
       >
         <div style={{ marginBottom: 16 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openEnvCreate}>新建环境</Button>
+          {canManageEnv && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openEnvCreate}>新建环境</Button>
+          )}
         </div>
         <Table rowKey="id" columns={envColumns} dataSource={environments} pagination={false} size="small" />
       </Modal>

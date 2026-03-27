@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
+	"github.com/dysodeng/etcd-manager/internal/domain"
 	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
@@ -28,6 +30,22 @@ func (h *ConfigCenterHandler) ListEnvironments(c *gin.Context) {
 	if err != nil {
 		Fail(c, CodeInternalError, err.Error())
 		return
+	}
+	// 按角色授权的环境过滤
+	if allowedIDs, exists := c.Get("allowed_env_ids"); exists {
+		if ids, ok := allowedIDs.([]uuid.UUID); ok {
+			allowed := make(map[uuid.UUID]bool, len(ids))
+			for _, id := range ids {
+				allowed[id] = true
+			}
+			filtered := make([]domain.Environment, 0, len(ids))
+			for _, env := range envs {
+				if allowed[env.ID] {
+					filtered = append(filtered, env)
+				}
+			}
+			envs = filtered
+		}
 	}
 	OK(c, envs)
 }

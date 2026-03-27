@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/dysodeng/etcd-manager/internal/config"
 	"github.com/dysodeng/etcd-manager/internal/domain"
@@ -37,34 +38,40 @@ func main() {
 	time.Local = loc
 
 	var (
+		db           *gorm.DB
 		txManager    domain.TransactionManager
 		userRepo     domain.UserRepository
 		envRepo      domain.EnvironmentRepository
 		revisionRepo domain.ConfigRevisionRepository
 		auditRepo    domain.AuditLogRepository
+		roleRepo     domain.RoleRepository
 	)
 
 	switch cfg.Database.Driver {
 	case "postgres":
-		db, err := pgsql.NewDB(cfg.Database.DSN, loc)
+		pgDB, err := pgsql.NewDB(cfg.Database.DSN, loc)
 		if err != nil {
 			log.Fatalf("failed to init database: %v", err)
 		}
+		db = pgDB
 		txManager = pgsql.NewTransactionManager(db)
 		userRepo = pgsql.NewUserRepository(db)
 		envRepo = pgsql.NewEnvironmentRepository(db)
 		revisionRepo = pgsql.NewConfigRevisionRepository(db)
 		auditRepo = pgsql.NewAuditLogRepository(db)
+		roleRepo = pgsql.NewRoleRepository(db)
 	default: // sqlite
-		db, err := sqlite.NewDB(cfg.Database.Path, loc)
+		sqliteDB, err := sqlite.NewDB(cfg.Database.Path, loc)
 		if err != nil {
 			log.Fatalf("failed to init database: %v", err)
 		}
+		db = sqliteDB
 		txManager = sqlite.NewTransactionManager(db)
 		userRepo = sqlite.NewUserRepository(db)
 		envRepo = sqlite.NewEnvironmentRepository(db)
 		revisionRepo = sqlite.NewConfigRevisionRepository(db)
 		auditRepo = sqlite.NewAuditLogRepository(db)
+		roleRepo = sqlite.NewRoleRepository(db)
 	}
 
 	etcdClient, err := etcd.NewClient(cfg.Etcd)
@@ -76,9 +83,17 @@ func main() {
 	if err = seed.CreateAdminUser(context.Background(), userRepo); err != nil {
 		log.Fatalf("failed to seed admin user: %v", err)
 	}
+	if err = seed.CreateDefaultRoles(context.Background(), roleRepo, envRepo); err != nil {
+		log.Fatalf("failed to seed default roles: %v", err)
+	}
+	// 迁移旧的 role 字段数据到新 RBAC 模型
+	if err = seed.MigrateOldRoles(db, roleRepo); err != nil {
+		log.Fatalf("failed to migrate old roles: %v", err)
+	}
 
-	authSvc := service.NewAuthService(userRepo, cfg.JWT.Secret, cfg.JWT.ExpireHours)
-	userSvc := service.NewUserService(userRepo)
+	authSvc := service.NewAuthService(userRepo, roleRepo, cfg.JWT.Secret, cfg.JWT.ExpireHours)
+	userSvc := service.NewUserService(userRepo, roleRepo)
+	roleSvc := service.NewRoleService(roleRepo, userRepo)
 	envSvc := service.NewEnvironmentService(envRepo, etcdClient)
 	auditSvc := service.NewAuditService(auditRepo)
 	kvSvc := service.NewKVService(etcdClient)
@@ -88,7 +103,7 @@ func main() {
 	grpcSvc := service.NewGrpcServiceManager(etcdClient)
 
 	handlers := &handler.Handlers{
-		Auth:         handler.NewAuthHandler(authSvc, userSvc),
+		Auth:         handler.NewAuthHandler(authSvc),
 		KV:           handler.NewKVHandler(kvSvc, auditSvc),
 		ConfigCenter: handler.NewConfigCenterHandler(configSvc, envSvc, auditSvc),
 		Watch:        handler.NewWatchHandler(etcdClient),
@@ -97,12 +112,13 @@ func main() {
 		Audit:        handler.NewAuditHandler(auditSvc, userSvc),
 		Gateway:      handler.NewGatewayHandler(gatewaySvc, auditSvc),
 		Grpc:         handler.NewGrpcHandler(grpcSvc, auditSvc),
+		Role:         handler.NewRoleHandler(roleSvc, auditSvc),
 	}
 
 	r := gin.Default()
 	_ = r.SetTrustedProxies([]string{"0.0.0.0/0"})
 	r.RemoteIPHeaders = []string{"X-Real-IP", "X-Forwarded-For"}
-	handler.RegisterRoutes(r, handlers, cfg.JWT.Secret)
+	handler.RegisterRoutes(r, handlers, cfg.JWT.Secret, roleRepo)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("Server starting on %s", addr)

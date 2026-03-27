@@ -22,6 +22,9 @@ func NewDB(dbPath string, loc *time.Location) (*gorm.DB, error) {
 	}
 	if err = db.AutoMigrate(
 		&User{},
+		&Role{},
+		&RolePermission{},
+		&RoleEnvironment{},
 		&Environment{},
 		&ConfigRevision{},
 		&AuditLog{},

@@ -9,14 +9,15 @@ import {
 } from '@ant-design/icons'
 import type { ConfigItem, ConfigRevision } from '@/types'
 import { configApi } from '@/api/config'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
 import { formatTime, downloadBlob } from '@/utils'
 
 export default function ConfigPage() {
   const currentEnv = useEnvironmentStore((s) => s.current)
-  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = canWrite(user, 'config')
 
   const [items, setItems] = useState<ConfigItem[]>([])
   const [loading, setLoading] = useState(false)

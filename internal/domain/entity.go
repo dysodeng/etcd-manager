@@ -7,12 +7,39 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
-	Role         string    `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           uuid.UUID  `json:"id"`
+	Username     string     `json:"username"`
+	PasswordHash string     `json:"-"`
+	IsSuper      bool       `json:"is_super"`
+	RoleID       *uuid.UUID `json:"role_id"`
+	RoleName     string     `json:"role_name" gorm:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+type Role struct {
+	ID           uuid.UUID        `json:"id"`
+	Name         string           `json:"name"`
+	Description  string           `json:"description"`
+	Permissions  []RolePermission `json:"permissions" gorm:"-"`
+	Environments []uuid.UUID      `json:"environment_ids" gorm:"-"`
+	UserCount    int64            `json:"user_count" gorm:"-"`
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
+}
+
+type RolePermission struct {
+	ID       uuid.UUID `json:"id"`
+	RoleID   uuid.UUID `json:"role_id"`
+	Module   string    `json:"module"`
+	CanRead  bool      `json:"can_read"`
+	CanWrite bool      `json:"can_write"`
+}
+
+type RoleEnvironment struct {
+	ID            uuid.UUID `json:"id"`
+	RoleID        uuid.UUID `json:"role_id"`
+	EnvironmentID uuid.UUID `json:"environment_id"`
 }
 
 type Environment struct {

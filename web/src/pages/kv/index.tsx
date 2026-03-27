@@ -3,7 +3,7 @@ import { Table, Button, Input, Space, Modal, Form, message, Popconfirm, Segmente
 import { PlusOutlined, ReloadOutlined, SearchOutlined, UnorderedListOutlined, ApartmentOutlined } from '@ant-design/icons'
 import type { KVItem } from '@/types'
 import { kvApi } from '@/api/kv'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, canWrite } from '@/stores/auth'
 import MonacoEditor from '@/components/MonacoEditor'
 import KVTreeView from './KVTreeView'
 import { buildKVTree } from './buildKVTree'
@@ -16,7 +16,8 @@ export default function KVPage() {
   const [editing, setEditing] = useState<KVItem | null>(null)
   const [form] = Form.useForm()
   const [editorValue, setEditorValue] = useState('')
-  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = canWrite(user, 'kv')
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list')
 
   const fetchData = async (p?: string) => {

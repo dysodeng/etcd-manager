@@ -7,4 +7,6 @@ export const userApi = {
   create: (data: UserCreateRequest) => request<User>(client.post('/users', data)),
   update: (id: string, data: UserUpdateRequest) => request<null>(client.put(`/users/${id}`, data)),
   delete: (id: string) => request<null>(client.delete(`/users/${id}`)),
+  transferSuper: (id: string, roleId: string) =>
+    request<null>(client.put(`/users/${id}/transfer-super`, { role_id: roleId })),
 }

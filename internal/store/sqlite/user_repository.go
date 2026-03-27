@@ -61,24 +61,48 @@ func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return GetDB(ctx, r.db).Where("id = ?", id.String()).Delete(&User{}).Error
 }
 
+func (r *UserRepository) CountByRoleID(ctx context.Context, roleID uuid.UUID) (int64, error) {
+	var count int64
+	err := GetDB(ctx, r.db).Model(&User{}).Where("role_id = ?", roleID.String()).Count(&count).Error
+	return count, err
+}
+
+func (r *UserRepository) GetSuperAdmin(ctx context.Context) (*domain.User, error) {
+	var m User
+	if err := GetDB(ctx, r.db).Where("is_super = ?", true).First(&m).Error; err != nil {
+		return nil, err
+	}
+	return userToDomain(&m), nil
+}
+
 func userToDomain(m *User) *domain.User {
-	return &domain.User{
+	u := &domain.User{
 		ID:           uuid.MustParse(m.ID),
 		Username:     m.Username,
 		PasswordHash: m.PasswordHash,
-		Role:         m.Role,
+		IsSuper:      m.IsSuper,
 		CreatedAt:    m.CreatedAt,
 		UpdatedAt:    m.UpdatedAt,
 	}
+	if m.RoleID != nil {
+		rid := uuid.MustParse(*m.RoleID)
+		u.RoleID = &rid
+	}
+	return u
 }
 
 func userToModel(d *domain.User) *User {
-	return &User{
+	m := &User{
 		ID:           d.ID.String(),
 		Username:     d.Username,
 		PasswordHash: d.PasswordHash,
-		Role:         d.Role,
+		IsSuper:      d.IsSuper,
 		CreatedAt:    d.CreatedAt,
 		UpdatedAt:    d.UpdatedAt,
 	}
+	if d.RoleID != nil {
+		s := d.RoleID.String()
+		m.RoleID = &s
+	}
+	return m
 }

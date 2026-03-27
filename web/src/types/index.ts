@@ -16,9 +16,42 @@ export interface PaginatedData<T> {
 export interface User {
   id: string
   username: string
-  role: 'admin' | 'viewer'
+  is_super: boolean
+  role_id: string | null
+  role_name: string
   created_at: string
   updated_at: string
+}
+
+export interface RolePermission {
+  module: string
+  can_read: boolean
+  can_write: boolean
+}
+
+export interface RoleDetail {
+  id: string
+  name: string
+  permissions: RolePermission[]
+  environment_ids: string[]
+}
+
+export interface Role {
+  id: string
+  name: string
+  description: string
+  permissions: RolePermission[]
+  environment_ids: string[]
+  user_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface UserProfile {
+  user_id: string
+  username: string
+  is_super: boolean
+  role: RoleDetail | null
 }
 
 export interface Environment {
@@ -80,7 +113,8 @@ export interface LoginResponse {
   token: string
   user_id: string
   username: string
-  role: string
+  is_super: boolean
+  role: RoleDetail | null
 }
 
 export interface ChangePasswordRequest {
@@ -135,11 +169,26 @@ export interface EnvironmentCreateRequest {
 export interface UserCreateRequest {
   username: string
   password: string
-  role: 'admin' | 'viewer'
+  role_id: string
 }
 
 export interface UserUpdateRequest {
-  role: 'admin' | 'viewer'
+  role_id: string
+}
+
+// Role
+export interface RoleCreateRequest {
+  name: string
+  description: string
+  permissions: RolePermission[]
+  environment_ids: string[]
+}
+
+export interface RoleUpdateRequest {
+  name: string
+  description: string
+  permissions: RolePermission[]
+  environment_ids: string[]
 }
 
 // Cluster
