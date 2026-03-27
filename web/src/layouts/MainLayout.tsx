@@ -22,6 +22,7 @@ import {
   SunOutlined,
   MoonOutlined,
   DesktopOutlined,
+  CopyOutlined,
 } from '@ant-design/icons'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
@@ -191,16 +192,40 @@ export default function MainLayout() {
     }
   }
 
+  const fullPrefix = (record: Environment, suffix: string) => {
+    const base = record.key_prefix.endsWith('/') ? record.key_prefix : record.key_prefix + '/'
+    return base + suffix
+  }
+
+  const copyBtn = (text: string) => (
+    <CopyOutlined
+      style={{ marginLeft: 4, cursor: 'pointer', color: '#1890ff' }}
+      onClick={() => { navigator.clipboard.writeText(text); message.success('已复制') }}
+    />
+  )
+
   const envColumns = [
     { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
-    { title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix', width: 140 },
-    { title: '配置前缀', dataIndex: 'config_prefix', key: 'config_prefix', width: 120 },
-    { title: '网关前缀', dataIndex: 'gateway_prefix', key: 'gateway_prefix', width: 130 },
-    { title: 'gRPC 前缀', dataIndex: 'grpc_prefix', key: 'grpc_prefix', width: 130 },
+    {
+      title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix', width: 160,
+      render: (v: string) => <>{v}{copyBtn(v)}</>,
+    },
+    {
+      title: '配置前缀', dataIndex: 'config_prefix', key: 'config_prefix', width: 140,
+      render: (v: string, record: Environment) => <>{v}{v && copyBtn(fullPrefix(record, v))}</>,
+    },
+    {
+      title: '网关前缀', dataIndex: 'gateway_prefix', key: 'gateway_prefix', width: 150,
+      render: (v: string, record: Environment) => <>{v}{v && copyBtn(fullPrefix(record, v))}</>,
+    },
+    {
+      title: 'gRPC 前缀', dataIndex: 'grpc_prefix', key: 'grpc_prefix', width: 150,
+      render: (v: string, record: Environment) => <>{v}{v && copyBtn(fullPrefix(record, v))}</>,
+    },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-    { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
+    { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 60 },
     ...(canManageEnv ? [{
-      title: '操作', key: 'actions', width: 120,
+      title: '操作', key: 'actions', width: 100,
       render: (_: unknown, record: Environment) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEnvEdit(record)} />
@@ -347,7 +372,7 @@ export default function MainLayout() {
         open={envOpen}
         onCancel={() => setEnvOpen(false)}
         footer={null}
-        width={1000}
+        width={1100}
       >
         <div style={{ marginBottom: 16 }}>
           {canManageEnv && (

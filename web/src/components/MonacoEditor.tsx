@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Modal, Button, Tooltip } from 'antd'
 import { ExpandOutlined, CompressOutlined } from '@ant-design/icons'
-import Editor, { type EditorProps } from '@monaco-editor/react'
+import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react'
+import type { editor } from 'monaco-editor'
 
 function detectLanguage(value: string): string {
   const trimmed = value.trimStart()
@@ -25,6 +26,22 @@ interface Props {
 export default function MonacoEditor({ value, onChange, language, height = 400, readOnly = false }: Props) {
   const lang = language ?? detectLanguage(value)
   const [expanded, setExpanded] = useState(false)
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const monacoRef = useRef<Monaco | null>(null)
+
+  useEffect(() => {
+    if (editorRef.current && monacoRef.current) {
+      const model = editorRef.current.getModel()
+      if (model) {
+        monacoRef.current.editor.setModelLanguage(model, lang)
+      }
+    }
+  }, [lang])
+
+  const handleMount = (ed: editor.IStandaloneCodeEditor, monaco: Monaco) => {
+    editorRef.current = ed
+    monacoRef.current = monaco
+  }
 
   const options: EditorProps['options'] = {
     minimap: { enabled: false },
@@ -51,6 +68,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
           onChange={(v) => onChange?.(v ?? '')}
           options={options}
           theme="vs-dark"
+          onMount={handleMount}
         />
         <Tooltip title="展开编辑器">
           <Button
@@ -92,6 +110,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
           onChange={(v) => onChange?.(v ?? '')}
           options={expandedOptions}
           theme="vs-dark"
+          onMount={handleMount}
         />
       </Modal>
     </>
