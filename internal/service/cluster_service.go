@@ -140,16 +140,14 @@ func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, er
 		return nil, err
 	}
 
-	// 建立 client URL → member 映射
+	// 建立 member ID → member 映射
 	type memberMeta struct {
 		Name      string
 		IsLearner bool
 	}
-	urlToMember := make(map[string]memberMeta)
+	idToMember := make(map[uint64]memberMeta)
 	for _, m := range memberResp.Members {
-		for _, u := range m.ClientURLs {
-			urlToMember[u] = memberMeta{Name: m.Name, IsLearner: m.IsLearner}
-		}
+		idToMember[m.ID] = memberMeta{Name: m.Name, IsLearner: m.IsLearner}
 	}
 
 	var results []MemberStatus
@@ -159,7 +157,7 @@ func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, er
 		if err != nil {
 			continue
 		}
-		meta := urlToMember[ep]
+		meta := idToMember[sr.Header.MemberId]
 		results = append(results, MemberStatus{
 			Name:             meta.Name,
 			Endpoint:         ep,

@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, DisconnectOutlined,
-  WarningOutlined, CrownOutlined, BookOutlined,
+  WarningOutlined, BookOutlined,
 } from '@ant-design/icons'
 import type { ClusterStatus, ClusterMetrics, MemberStatus, AlarmInfo } from '@/types'
 import { clusterApi } from '@/api/cluster'
@@ -152,7 +152,7 @@ export default function ClusterPage() {
                 render: (name: string) => (
                   <Space>
                     {name}
-                    {name === status.leader && <Tag icon={<CrownOutlined />} color="blue">Leader</Tag>}
+                    {name === status.leader && <Tag color="blue">Leader</Tag>}
                   </Space>
                 ),
               },
@@ -185,8 +185,8 @@ export default function ClusterPage() {
                 render: (name: string, record: MemberStatus) => (
                   <Space>
                     {name || record.endpoint}
-                    {record.is_leader && <Tag icon={<CrownOutlined />} color="blue">Leader</Tag>}
-                    {record.is_learner && <Tag icon={<BookOutlined />} color="orange">Learner</Tag>}
+                    {record.is_leader && <Tag color="blue">Leader</Tag>}
+                    {record.is_learner && <Tag color="orange">Learner</Tag>}
                   </Space>
                 ),
               },
