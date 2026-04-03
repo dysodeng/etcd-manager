@@ -5,14 +5,14 @@ import {
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined,
-  HistoryOutlined, ImportOutlined, ExportOutlined, RollbackOutlined, EyeOutlined,
+  HistoryOutlined, ImportOutlined, ExportOutlined, RollbackOutlined, EyeOutlined, CopyOutlined,
 } from '@ant-design/icons'
 import type { ConfigItem, ConfigRevision } from '@/types'
 import { configApi } from '@/api/config'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
-import { formatTime, downloadBlob } from '@/utils'
+import { formatTime, downloadBlob, copyText } from '@/utils'
 
 export default function ConfigPage() {
   const currentEnv = useEnvironmentStore((s) => s.current)
@@ -152,8 +152,26 @@ export default function ConfigPage() {
     return <div style={{ textAlign: 'center', padding: 48, color: '#999' }}>请先在顶栏选择环境</div>
   }
 
+  const copyFullKey = (key: string) => {
+    const prefix = currentEnv?.config_prefix ?? ''
+    const base = currentEnv?.key_prefix ?? ''
+    const normalizedBase = base.endsWith('/') ? base : base + '/'
+    const fullKey = normalizedBase + prefix + key
+    copyText(fullKey).then(() => message.success('已复制'))
+  }
+
   const columns = [
-    { title: 'Key', dataIndex: 'key', key: 'key', ellipsis: true },
+    {
+      title: 'Key', dataIndex: 'key', key: 'key', ellipsis: true,
+      render: (v: string) => (
+        <Space>
+          <span>{v}</span>
+          <Tooltip title="复制完整 Key">
+            <CopyOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => copyFullKey(v)} />
+          </Tooltip>
+        </Space>
+      ),
+    },
     {
       title: 'Value', dataIndex: 'value', key: 'value', ellipsis: true,
       render: (v: string) => <span style={{ fontFamily: 'monospace' }}>{v.length > 60 ? v.slice(0, 60) + '...' : v}</span>,

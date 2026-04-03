@@ -32,6 +32,7 @@ import { syncApi, type EnvSyncStatus } from '@/api/sync'
 import type { Environment, EnvironmentCreateRequest } from '@/types'
 import { menuItemConfigs, getVisibleMenuKeys } from '@/config/menu'
 import { useThemeStore, useIsDark, type ThemeMode } from '@/stores/theme'
+import { copyText } from '@/utils'
 
 const { Sider, Header, Content } = Layout
 const { Text } = Typography
@@ -200,7 +201,7 @@ export default function MainLayout() {
   const copyBtn = (text: string) => (
     <CopyOutlined
       style={{ marginLeft: 4, cursor: 'pointer', color: '#1890ff' }}
-      onClick={() => { navigator.clipboard.writeText(text); message.success('已复制') }}
+      onClick={() => { copyText(text).then(() => message.success('已复制')) }}
     />
   )
 
