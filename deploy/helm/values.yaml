@@ -152,13 +152,13 @@ frontend:
       cpu: 200m
       memory: 128Mi
 
-  podSecurityContext:
-    fsGroup: 101
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 101
-    readOnlyRootFilesystem: false
-    allowPrivilegeEscalation: false
+  # NOTE: the upstream nginx:alpine image writes to /var/cache/nginx and
+  # /var/run (both owned by root), so it cannot run non-root out of the box.
+  # We allow root to match the original docker-compose behaviour. To harden,
+  # either switch to nginxinc/nginx-unprivileged or chown those dirs in the
+  # Dockerfile, then re-enable runAsNonRoot/runAsUser here.
+  podSecurityContext: {}
+  securityContext: {}
 
   nodeSelector: {}
   tolerations: []
