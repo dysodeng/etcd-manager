@@ -1,0 +1,47 @@
+================================================================
+  etcd-manager has been deployed.  Default login: admin / admin123
+================================================================
+
+{{- if .Values.etcd.enabled }}
+
+A bundled {{ .Values.etcd.replicaCount }}-node etcd cluster (StatefulSet
+"{{ include "etcd-manager.etcd.fullname" . }}") was created. The backend is
+pre-configured to connect to 127.0.0.1 by default, so point it at the cluster:
+
+  ETCD_ENDPOINTS={{ include "etcd-manager.etcd.fullname" . }}-client.{{ .Release.Namespace }}.svc:{{ .Values.etcd.service.clientPort }}
+
+e.g. override backend.env in your values:
+
+  backend:
+    env:
+      ETCD_ENDPOINTS: "{{ include "etcd-manager.etcd.fullname" . }}-client.{{ .Release.Namespace }}.svc:{{ .Values.etcd.service.clientPort }}"
+{{- end }}
+
+1. Wait for the Pods to become ready:
+
+   kubectl --namespace {{ .Release.Namespace }} rollout status deploy/{{ include "etcd-manager.backend.fullname" . }}
+   kubectl --namespace {{ .Release.Namespace }} rollout status deploy/{{ include "etcd-manager.frontend.fullname" . }}
+
+2. Access the UI.{{- if .Values.ingress.enabled }}
+   An Ingress is enabled for host(s):
+{{- range .Values.ingress.hosts }}
+     - http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{- end }}
+{{- else }}
+   Port-forward the frontend Service:
+
+     kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "etcd-manager.frontend.fullname" . }} 8080:{{ .Values.frontend.service.port }}
+
+   Then open:  http://127.0.0.1:8080
+
+   (The frontend calls /api/v1, which Ingress routes to the backend. With a
+   plain port-forward use the Ingress or a combined port-forward instead.)
+{{- end }}
+
+3. SECURITY: change the JWT secret and the admin password before going to
+   production. Supply a strong random value for the JWT secret, e.g. via a
+   Secret + envFrom:
+
+     backend:
+       envFrom:
+         - secretRef:
+             name: etcd-manager-secrets   # must define JWT_SECRET

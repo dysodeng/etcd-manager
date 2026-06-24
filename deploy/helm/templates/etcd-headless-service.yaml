@@ -1,0 +1,47 @@
+{{- if .Values.etcd.enabled -}}
+# Headless service: provides stable DNS per pod (<pod>.<svc>) which etcd
+# needs for --initial-advertise-peer-urls and --advertise-client-urls.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "etcd-manager.etcd.fullname" . | quote }}
+  labels:
+    {{- include "etcd-manager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: etcd
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: client
+      port: {{ .Values.etcd.service.clientPort }}
+      targetPort: client
+      protocol: TCP
+    - name: peer
+      port: {{ .Values.etcd.service.peerPort }}
+      targetPort: peer
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ include "etcd-manager.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: etcd
+---
+# Client service: a stable ClusterIP for the backend to dial.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "etcd-manager.etcd.fullname" . }}-client
+  labels:
+    {{- include "etcd-manager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: etcd
+spec:
+  type: {{ .Values.etcd.service.type }}
+  ports:
+    - name: client
+      port: {{ .Values.etcd.service.clientPort }}
+      targetPort: client
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ include "etcd-manager.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: etcd
+{{- end -}}

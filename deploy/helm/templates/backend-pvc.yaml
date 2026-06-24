@@ -1,0 +1,24 @@
+{{- if .Values.backend.persistence.enabled -}}
+{{- if not .Values.backend.persistence.existingClaim -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "etcd-manager.backend.fullname" . | quote }}
+  labels:
+    {{- include "etcd-manager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  accessModes:
+    - {{ .Values.backend.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.size | quote }}
+  {{- with .Values.backend.persistence.storageClass }}
+  {{- if (eq "-" .) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+{{- end -}}
+{{- end -}}

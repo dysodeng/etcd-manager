@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "etcd-manager.backend.fullname" . | quote }}
+  labels:
+    {{- include "etcd-manager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+data:
+  config.yaml: |
+{{- toYaml .Values.backend.config | nindent 4 }}

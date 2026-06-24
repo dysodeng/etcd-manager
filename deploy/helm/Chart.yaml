@@ -1,0 +1,17 @@
+apiVersion: v2
+name: etcd-manager
+description: A visual management platform for etcd clusters - KV management, config center, gateway/gRPC service discovery, cluster monitoring, RBAC and audit logs.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - etcd
+  - etcd-manager
+  - config-center
+  - service-discovery
+home: https://github.com/dysodeng/etcd-manager
+sources:
+  - https://github.com/dysodeng/etcd-manager
+maintainers:
+  - name: dysodeng
+    url: https://github.com/dysodeng
