@@ -45,3 +45,13 @@ e.g. override backend.env in your values:
        envFrom:
          - secretRef:
              name: etcd-manager-secrets   # must define JWT_SECRET
+
+{{- if .Values.etcd.enabled }}
+NOTE on the bundled etcd cluster: a StatefulSet's volumeClaimTemplates are
+IMMUTABLE in Kubernetes. If you ever change etcd persistence (size, storageClass)
+or see "updates to statefulset spec ... are forbidden" on helm upgrade, delete
+the StatefulSet first (this preserves the PVCs/data) then re-run the upgrade:
+
+   kubectl --namespace {{ .Release.Namespace }} delete statefulset {{ include "etcd-manager.etcd.fullname" . }} --cascade=orphan
+   helm upgrade etcd-manager deploy/helm -n {{ .Release.Namespace }}
+{{- end }}
