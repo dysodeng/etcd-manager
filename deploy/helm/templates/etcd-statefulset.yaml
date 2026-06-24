@@ -65,9 +65,9 @@ spec:
             - --advertise-client-urls=http://$(POD_NAME).{{ include "etcd-manager.etcd.fullname" . }}.$(POD_NAMESPACE).svc:{{ .Values.etcd.service.clientPort }}
             - --initial-advertise-peer-urls=http://$(POD_NAME).{{ include "etcd-manager.etcd.fullname" . }}.$(POD_NAMESPACE).svc:{{ .Values.etcd.service.peerPort }}
             - --initial-cluster={{ include "etcd-manager.etcd.initialCluster" . }}
-            - --initial-cluster-token={{ .Values.etcd.token | quote }}
+            - --initial-cluster-token={{ .Values.etcd.token }}
             - --initial-cluster-state=new
-            - --auto-compaction-retention={{ .Values.etcd.autoCompactionRetention | quote }}
+            - --auto-compaction-retention={{ .Values.etcd.autoCompactionRetention }}
             - --max-request-bytes={{ .Values.etcd.maxRequestBytes }}
             - --quota-backend-bytes={{ .Values.etcd.quotaBackendBytes }}
           volumeMounts:
