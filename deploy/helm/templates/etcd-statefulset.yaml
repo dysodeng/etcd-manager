@@ -68,8 +68,8 @@ spec:
             - --initial-cluster-token={{ .Values.etcd.token | quote }}
             - --initial-cluster-state=new
             - --auto-compaction-retention={{ .Values.etcd.autoCompactionRetention | quote }}
-            - --max-request-bytes={{ .Values.etcd.maxRequestBytes | quote }}
-            - --quota-backend-bytes={{ .Values.etcd.quotaBackendBytes | quote }}
+            - --max-request-bytes={{ .Values.etcd.maxRequestBytes }}
+            - --quota-backend-bytes={{ .Values.etcd.quotaBackendBytes }}
           volumeMounts:
             {{- if .Values.etcd.persistence.enabled }}
             - name: data
