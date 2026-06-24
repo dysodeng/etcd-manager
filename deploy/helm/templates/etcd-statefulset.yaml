@@ -71,8 +71,10 @@ spec:
             - --max-request-bytes={{ .Values.etcd.maxRequestBytes | quote }}
             - --quota-backend-bytes={{ .Values.etcd.quotaBackendBytes | quote }}
           volumeMounts:
+            {{- if .Values.etcd.persistence.enabled }}
             - name: data
               mountPath: /var/lib/etcd
+            {{- end }}
           {{- with .Values.etcd.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
