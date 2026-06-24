@@ -115,16 +115,17 @@ backend:
   affinity: {}
   podAnnotations: {}
   podLabels: {}
+  # -- Backend has no unauthenticated HTTP endpoint (all routes sit behind
+  #    the JWT middleware), so probes use a TCP check on the http port.
+  #    If you later add a public /health endpoint, switch back to httpGet.
   livenessProbe:
-    httpGet:
-      path: /api/v1/cluster/status
+    tcpSocket:
       port: http
     initialDelaySeconds: 15
     periodSeconds: 20
     failureThreshold: 5
   readinessProbe:
-    httpGet:
-      path: /api/v1/cluster/status
+    tcpSocket:
       port: http
     initialDelaySeconds: 5
     periodSeconds: 10
