@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"strconv"
 
@@ -23,6 +24,14 @@ func NewConfigCenterHandler(
 	auditSvc *service.AuditService,
 ) *ConfigCenterHandler {
 	return &ConfigCenterHandler{configSvc: configSvc, envSvc: envSvc, auditSvc: auditSvc}
+}
+
+func configWriteErrorCode(err error) int {
+	var validationErr *service.ConfigValidationError
+	if errors.As(err, &validationErr) {
+		return CodeParamInvalid
+	}
+	return CodeEtcdOpFailed
 }
 
 func (h *ConfigCenterHandler) ListEnvironments(c *gin.Context) {
@@ -161,7 +170,7 @@ func (h *ConfigCenterHandler) CreateConfig(c *gin.Context) {
 		if err.Error() == "key already exists" {
 			Fail(c, CodeKeyExists, err.Error())
 		} else {
-			Fail(c, CodeEtcdOpFailed, err.Error())
+			Fail(c, configWriteErrorCode(err), err.Error())
 		}
 		return
 	}
@@ -185,7 +194,7 @@ func (h *ConfigCenterHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 	if err := h.configSvc.Update(c.Request.Context(), req.Env, req.Key, req.Value, req.Comment, userID); err != nil {
-		Fail(c, CodeEtcdOpFailed, err.Error())
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	h.auditSvc.Log(c.Request.Context(), userID, "update", "config", req.Key, "["+req.Env+"] "+req.Comment, c.ClientIP())
@@ -253,7 +262,7 @@ func (h *ConfigCenterHandler) Rollback(c *gin.Context) {
 		if err.Error() == "revision not found" {
 			Fail(c, CodeRevisionNotFound, err.Error())
 		} else {
-			Fail(c, CodeEtcdOpFailed, err.Error())
+			Fail(c, configWriteErrorCode(err), err.Error())
 		}
 		return
 	}
