@@ -86,6 +86,46 @@ func TestConfigServiceListRejectsUnauthorizedEnvironment(t *testing.T) {
 	}
 }
 
+func TestConfigServiceRejectsUnauthorizedEnvironmentForEveryEntryPoint(t *testing.T) {
+	env := &domain.Environment{ID: uuid.New(), Name: "prod"}
+	svc := newConfigServiceForAuthorizationTest(env)
+	ctx := domain.WithEnvironmentScope(context.Background(), domain.EnvironmentScope{AllowedIDs: []uuid.UUID{uuid.New()}})
+	tests := map[string]func() error{
+		"create": func() error {
+			return svc.Create(ctx, "prod", "app.yaml", "name: app", "test", uuid.New())
+		},
+		"update": func() error {
+			return svc.Update(ctx, "prod", "app.yaml", "name: app", "test", uuid.New())
+		},
+		"delete": func() error {
+			return svc.Delete(ctx, "prod", "app.yaml", uuid.New())
+		},
+		"revisions": func() error {
+			_, _, err := svc.Revisions(ctx, "prod", "app.yaml", 1, 20)
+			return err
+		},
+		"rollback": func() error {
+			return svc.Rollback(ctx, "prod", "app.yaml", uuid.New(), uuid.New())
+		},
+		"export": func() error {
+			_, err := svc.Export(ctx, "prod", "json")
+			return err
+		},
+		"import": func() error {
+			_, err := svc.Import(ctx, "prod", []byte(`{"app.yaml":"name: app"}`), true, uuid.New())
+			return err
+		},
+	}
+
+	for name, call := range tests {
+		t.Run(name, func(t *testing.T) {
+			if err := call(); !errors.Is(err, domain.ErrEnvironmentForbidden) {
+				t.Fatalf("error = %v, want ErrEnvironmentForbidden", err)
+			}
+		})
+	}
+}
+
 func newConfigServiceForAuthorizationTest(env *domain.Environment) *ConfigService {
 	return &ConfigService{envRepo: &configAuthorizationEnvironmentRepository{environment: env}}
 }
