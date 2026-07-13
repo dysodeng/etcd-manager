@@ -2,11 +2,34 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 )
+
+func TestConfigServiceWritesValidateBeforeAccessingDependencies(t *testing.T) {
+	svc := &ConfigService{}
+	writes := map[string]func() error{
+		"create": func() error {
+			return svc.Create(context.Background(), "dev", "app.yaml", "items: [one, two", "test", uuid.Nil)
+		},
+		"update": func() error {
+			return svc.Update(context.Background(), "dev", "app.yaml", "items: [one, two", "test", uuid.Nil)
+		},
+	}
+
+	for name, write := range writes {
+		t.Run(name, func(t *testing.T) {
+			err := write()
+			var validationErr *ConfigValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("write error = %v, want *ConfigValidationError", err)
+			}
+		})
+	}
+}
 
 func TestConfigServiceImportDryRunValidatesConfigValues(t *testing.T) {
 	svc := &ConfigService{}
