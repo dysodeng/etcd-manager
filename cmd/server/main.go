@@ -92,7 +92,7 @@ func main() {
 	}
 
 	authSvc := service.NewAuthService(userRepo, roleRepo, cfg.JWT.Secret, cfg.JWT.ExpireHours)
-	userSvc := service.NewUserService(userRepo, roleRepo)
+	userSvc := service.NewUserService(userRepo, roleRepo, txManager)
 	roleSvc := service.NewRoleService(roleRepo, userRepo)
 	envSvc := service.NewEnvironmentService(envRepo, etcdClient)
 	auditSvc := service.NewAuditService(auditRepo)

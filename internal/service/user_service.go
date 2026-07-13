@@ -11,12 +11,13 @@ import (
 )
 
 type UserService struct {
-	userRepo domain.UserRepository
-	roleRepo domain.RoleRepository
+	userRepo  domain.UserRepository
+	roleRepo  domain.RoleRepository
+	txManager domain.TransactionManager
 }
 
-func NewUserService(userRepo domain.UserRepository, roleRepo domain.RoleRepository) *UserService {
-	return &UserService{userRepo: userRepo, roleRepo: roleRepo}
+func NewUserService(userRepo domain.UserRepository, roleRepo domain.RoleRepository, txManager domain.TransactionManager) *UserService {
+	return &UserService{userRepo: userRepo, roleRepo: roleRepo, txManager: txManager}
 }
 
 func (s *UserService) Create(ctx context.Context, username, password string, roleID uuid.UUID) (*domain.User, error) {
@@ -101,30 +102,33 @@ func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, 
 
 // TransferSuper 转移超级管理员权限
 func (s *UserService) TransferSuper(ctx context.Context, currentUserID, targetUserID uuid.UUID, roleIDForOld uuid.UUID) error {
-	current, err := s.userRepo.GetByID(ctx, currentUserID)
-	if err != nil {
-		return err
+	if _, err := s.roleRepo.GetByID(ctx, roleIDForOld); err != nil {
+		return errors.New("role not found")
 	}
-	if !current.IsSuper {
-		return errors.New("only super admin can transfer")
-	}
-	target, err := s.userRepo.GetByID(ctx, targetUserID)
-	if err != nil {
-		return errors.New("target user not found")
-	}
-	if target.IsSuper {
-		return errors.New("target is already super admin")
-	}
+	return s.txManager.WithTransaction(ctx, func(txCtx context.Context) error {
+		current, err := s.userRepo.GetByID(txCtx, currentUserID)
+		if err != nil {
+			return err
+		}
+		if !current.IsSuper {
+			return errors.New("only super admin can transfer")
+		}
+		target, err := s.userRepo.GetByID(txCtx, targetUserID)
+		if err != nil {
+			return errors.New("target user not found")
+		}
+		if target.IsSuper {
+			return errors.New("target is already super admin")
+		}
 
-	// 旧超管降级
-	current.IsSuper = false
-	current.RoleID = &roleIDForOld
-	if err := s.userRepo.Update(ctx, current); err != nil {
-		return err
-	}
+		current.IsSuper = false
+		current.RoleID = &roleIDForOld
+		if err := s.userRepo.Update(txCtx, current); err != nil {
+			return err
+		}
 
-	// 新超管升级
-	target.IsSuper = true
-	target.RoleID = nil
-	return s.userRepo.Update(ctx, target)
+		target.IsSuper = true
+		target.RoleID = nil
+		return s.userRepo.Update(txCtx, target)
+	})
 }
