@@ -14,8 +14,8 @@ import (
 )
 
 type AuthService struct {
-	userRepo domain.UserRepository
-	roleRepo domain.RoleRepository
+	userRepo  domain.UserRepository
+	roleRepo  domain.RoleRepository
 	jwtSecret string
 	expireH   int
 }
@@ -33,10 +33,10 @@ type LoginResult struct {
 }
 
 type RoleDetail struct {
-	ID             string                `json:"id"`
-	Name           string                `json:"name"`
+	ID             string                  `json:"id"`
+	Name           string                  `json:"name"`
 	Permissions    []domain.RolePermission `json:"permissions"`
-	EnvironmentIDs []string              `json:"environment_ids"`
+	EnvironmentIDs []string                `json:"environment_ids"`
 }
 
 func (s *AuthService) Login(ctx context.Context, username, password string) (*LoginResult, error) {
@@ -48,16 +48,8 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*Lo
 		return nil, errors.New("invalid username or password")
 	}
 
-	roleIDStr := ""
-	if user.RoleID != nil {
-		roleIDStr = user.RoleID.String()
-	}
-
 	claims := &middleware.Claims{
-		UserID:   user.ID.String(),
-		Username: user.Username,
-		IsSuper:  user.IsSuper,
-		RoleID:   roleIDStr,
+		UserID: user.ID.String(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(s.expireH) * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

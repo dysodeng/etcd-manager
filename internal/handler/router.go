@@ -21,7 +21,7 @@ type Handlers struct {
 	Sync         *SyncHandler
 }
 
-func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, roleRepo domain.RoleRepository) {
+func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, userRepo domain.UserRepository, roleRepo domain.RoleRepository) {
 	r.Use(middleware.CORS())
 
 	api := r.Group("/api/v1")
@@ -31,7 +31,7 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, roleRepo domai
 	api.POST("/auth/logout", h.Auth.Logout)
 
 	// 需要认证的路由
-	auth := api.Group("", middleware.JWTAuth(jwtSecret))
+	auth := api.Group("", middleware.JWTAuth(jwtSecret, userRepo))
 	{
 		// 认证相关
 		auth.GET("/auth/profile", h.Auth.Profile)

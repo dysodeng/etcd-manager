@@ -120,7 +120,7 @@ func main() {
 	r := gin.Default()
 	_ = r.SetTrustedProxies([]string{"0.0.0.0/0"})
 	r.RemoteIPHeaders = []string{"X-Real-IP", "X-Forwarded-For"}
-	handler.RegisterRoutes(r, handlers, cfg.JWT.Secret, roleRepo)
+	handler.RegisterRoutes(r, handlers, cfg.JWT.Secret, userRepo, roleRepo)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("Server starting on %s", addr)
