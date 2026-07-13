@@ -8,20 +8,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type GrpcServiceManager struct {
-	etcdClient *etcd.Client
+	etcdClient serviceRegistryStore
 }
 
-func NewGrpcServiceManager(etcdClient *etcd.Client) *GrpcServiceManager {
+func NewGrpcServiceManager(etcdClient serviceRegistryStore) *GrpcServiceManager {
 	return &GrpcServiceManager{etcdClient: etcdClient}
 }
 
 // GrpcInstance 单个 gRPC 服务实例
 type GrpcInstance struct {
+	Key          string            `json:"key"`
 	ServiceName  string            `json:"service_name"`
 	Version      string            `json:"version"`
 	Address      string            `json:"address"`
@@ -44,7 +45,11 @@ type GrpcServiceGroup struct {
 }
 
 // ListServices 列出指定前缀下所有 gRPC 服务，按服务名分组
-func (s *GrpcServiceManager) ListServices(ctx context.Context, prefix string) ([]GrpcServiceGroup, error) {
+func (s *GrpcServiceManager) ListServices(ctx context.Context, env *domain.Environment) ([]GrpcServiceGroup, error) {
+	if err := domain.RequireEnvironmentAccess(ctx, env.ID); err != nil {
+		return nil, err
+	}
+	prefix := serviceRegistryPrefix(env.KeyPrefix, env.GrpcPrefix)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -60,6 +65,7 @@ func (s *GrpcServiceManager) ListServices(ctx context.Context, prefix string) ([
 		if err := json.Unmarshal(kv.Value, &inst); err != nil {
 			continue
 		}
+		inst.Key = string(kv.Key)
 		// 从 key 中提取 service_name（倒数第二段）
 		if inst.ServiceName == "" {
 			parts := strings.Split(string(kv.Key), "/")
@@ -96,7 +102,13 @@ func (s *GrpcServiceManager) ListServices(ctx context.Context, prefix string) ([
 }
 
 // UpdateInstanceStatus 更新实例状态，保留原 key 的 lease
-func (s *GrpcServiceManager) UpdateInstanceStatus(ctx context.Context, key string, status string) error {
+func (s *GrpcServiceManager) UpdateInstanceStatus(ctx context.Context, env *domain.Environment, key string, status string) error {
+	if err := domain.RequireEnvironmentAccess(ctx, env.ID); err != nil {
+		return err
+	}
+	if !strings.HasPrefix(key, serviceRegistryPrefix(env.KeyPrefix, env.GrpcPrefix)) {
+		return domain.ErrEnvironmentForbidden
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

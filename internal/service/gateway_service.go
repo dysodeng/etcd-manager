@@ -8,20 +8,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"github.com/dysodeng/etcd-manager/internal/domain"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type GatewayService struct {
-	etcdClient *etcd.Client
+	etcdClient serviceRegistryStore
 }
 
-func NewGatewayService(etcdClient *etcd.Client) *GatewayService {
+func NewGatewayService(etcdClient serviceRegistryStore) *GatewayService {
 	return &GatewayService{etcdClient: etcdClient}
 }
 
 // ServiceInstance 单个服务实例
 type ServiceInstance struct {
+	Key          string            `json:"key"`
 	ID           string            `json:"id"`
 	ServiceName  string            `json:"service_name"`
 	Host         string            `json:"host"`
@@ -43,7 +44,11 @@ type ServiceGroup struct {
 }
 
 // ListServices 列出指定前缀下所有服务，按服务名分组
-func (s *GatewayService) ListServices(ctx context.Context, prefix string) ([]ServiceGroup, error) {
+func (s *GatewayService) ListServices(ctx context.Context, env *domain.Environment) ([]ServiceGroup, error) {
+	if err := domain.RequireEnvironmentAccess(ctx, env.ID); err != nil {
+		return nil, err
+	}
+	prefix := serviceRegistryPrefix(env.KeyPrefix, env.GatewayPrefix)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -59,6 +64,7 @@ func (s *GatewayService) ListServices(ctx context.Context, prefix string) ([]Ser
 		if err := json.Unmarshal(kv.Value, &inst); err != nil {
 			continue
 		}
+		inst.Key = string(kv.Key)
 		// 从 key 中提取 service_name（倒数第二段）
 		if inst.ServiceName == "" {
 			parts := strings.Split(string(kv.Key), "/")
@@ -95,7 +101,13 @@ func (s *GatewayService) ListServices(ctx context.Context, prefix string) ([]Ser
 }
 
 // UpdateInstanceStatus 更新实例状态，保留原 key 的 lease
-func (s *GatewayService) UpdateInstanceStatus(ctx context.Context, key string, status string) error {
+func (s *GatewayService) UpdateInstanceStatus(ctx context.Context, env *domain.Environment, key string, status string) error {
+	if err := domain.RequireEnvironmentAccess(ctx, env.ID); err != nil {
+		return err
+	}
+	if !strings.HasPrefix(key, serviceRegistryPrefix(env.KeyPrefix, env.GatewayPrefix)) {
+		return domain.ErrEnvironmentForbidden
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

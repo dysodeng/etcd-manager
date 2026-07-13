@@ -111,8 +111,8 @@ func main() {
 		Cluster:      handler.NewClusterHandler(clusterSvc),
 		User:         handler.NewUserHandler(userSvc, auditSvc),
 		Audit:        handler.NewAuditHandler(auditSvc, userSvc),
-		Gateway:      handler.NewGatewayHandler(gatewaySvc, auditSvc),
-		Grpc:         handler.NewGrpcHandler(grpcSvc, auditSvc),
+		Gateway:      handler.NewGatewayHandler(gatewaySvc, envSvc, auditSvc),
+		Grpc:         handler.NewGrpcHandler(grpcSvc, envSvc, auditSvc),
 		Role:         handler.NewRoleHandler(roleSvc, auditSvc),
 		Sync:         handler.NewSyncHandler(syncSvc, auditSvc),
 	}

@@ -1,31 +1,43 @@
 package handler
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 
+	"github.com/dysodeng/etcd-manager/internal/domain"
 	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
 type GatewayHandler struct {
 	gatewaySvc *service.GatewayService
+	envSvc     *service.EnvironmentService
 	auditSvc   *service.AuditService
 }
 
-func NewGatewayHandler(gatewaySvc *service.GatewayService, auditSvc *service.AuditService) *GatewayHandler {
-	return &GatewayHandler{gatewaySvc: gatewaySvc, auditSvc: auditSvc}
+func NewGatewayHandler(gatewaySvc *service.GatewayService, envSvc *service.EnvironmentService, auditSvc *service.AuditService) *GatewayHandler {
+	return &GatewayHandler{gatewaySvc: gatewaySvc, envSvc: envSvc, auditSvc: auditSvc}
 }
 
 // List 列出所有服务（按服务名分组）
 func (h *GatewayHandler) List(c *gin.Context) {
-	prefix := c.Query("prefix")
-	if prefix == "" {
-		Fail(c, CodeParamInvalid, "prefix is required")
+	envName := c.Query("env")
+	if envName == "" {
+		Fail(c, CodeParamInvalid, "env is required")
 		return
 	}
-
-	groups, err := h.gatewaySvc.ListServices(c.Request.Context(), prefix)
+	env, err := h.envSvc.GetByName(c.Request.Context(), envName)
 	if err != nil {
-		Fail(c, CodeEtcdConnFailed, err.Error())
+		Fail(c, CodeParamInvalid, "environment not found")
+		return
+	}
+	groups, err := h.gatewaySvc.ListServices(c.Request.Context(), env)
+	if err != nil {
+		code := CodeEtcdConnFailed
+		if errors.Is(err, domain.ErrEnvironmentForbidden) {
+			code = CodeForbidden
+		}
+		Fail(c, code, err.Error())
 		return
 	}
 	OK(c, groups)
@@ -34,16 +46,25 @@ func (h *GatewayHandler) List(c *gin.Context) {
 // UpdateStatus 更新实例状态（下线/优雅下线）
 func (h *GatewayHandler) UpdateStatus(c *gin.Context) {
 	var req struct {
+		Env    string `json:"env" binding:"required"`
 		Key    string `json:"key" binding:"required"`
 		Status string `json:"status" binding:"required,oneof=up down"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Fail(c, CodeParamInvalid, "key and status(up/down) are required")
+		Fail(c, CodeParamInvalid, "env, key and status(up/down) are required")
 		return
 	}
-
-	if err := h.gatewaySvc.UpdateInstanceStatus(c.Request.Context(), req.Key, req.Status); err != nil {
-		Fail(c, CodeEtcdConnFailed, err.Error())
+	env, err := h.envSvc.GetByName(c.Request.Context(), req.Env)
+	if err != nil {
+		Fail(c, CodeParamInvalid, "environment not found")
+		return
+	}
+	if err := h.gatewaySvc.UpdateInstanceStatus(c.Request.Context(), env, req.Key, req.Status); err != nil {
+		code := CodeEtcdConnFailed
+		if errors.Is(err, domain.ErrEnvironmentForbidden) {
+			code = CodeForbidden
+		}
+		Fail(c, code, err.Error())
 		return
 	}
 
