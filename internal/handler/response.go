@@ -17,6 +17,7 @@ const (
 	CodeRevisionNotFound = response.CodeRevisionNotFound
 	CodeEnvExists        = response.CodeEnvExists
 	CodeEnvHasConfigs    = response.CodeEnvHasConfigs
+	CodeConfigConflict   = response.CodeConfigConflict
 	CodeEtcdConnFailed   = response.CodeEtcdConnFailed
 	CodeEtcdOpFailed     = response.CodeEtcdOpFailed
 	CodeUserExists       = response.CodeUserExists

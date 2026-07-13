@@ -34,6 +34,20 @@ func configWriteErrorCode(err error) int {
 	if errors.As(err, &validationErr) {
 		return CodeParamInvalid
 	}
+	switch {
+	case errors.Is(err, service.ErrKeyExists):
+		return CodeKeyExists
+	case errors.Is(err, service.ErrKeyNotFound):
+		return CodeKeyNotFound
+	case errors.Is(err, service.ErrConfigConflict):
+		return CodeConfigConflict
+	case errors.Is(err, service.ErrRevisionNotFound):
+		return CodeRevisionNotFound
+	}
+	var persistenceErr *service.ConfigPersistenceError
+	if errors.As(err, &persistenceErr) {
+		return CodeInternalError
+	}
 	return CodeEtcdOpFailed
 }
 
@@ -170,11 +184,7 @@ func (h *ConfigCenterHandler) CreateConfig(c *gin.Context) {
 		return
 	}
 	if err := h.configSvc.Create(c.Request.Context(), req.Env, req.Key, req.Value, req.Comment, userID); err != nil {
-		if err.Error() == "key already exists" {
-			Fail(c, CodeKeyExists, err.Error())
-		} else {
-			Fail(c, configWriteErrorCode(err), err.Error())
-		}
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	h.auditSvc.Log(c.Request.Context(), userID, "create", "config", req.Key, "["+req.Env+"] "+req.Comment, c.ClientIP())
@@ -262,11 +272,7 @@ func (h *ConfigCenterHandler) Rollback(c *gin.Context) {
 		return
 	}
 	if err := h.configSvc.Rollback(c.Request.Context(), req.Env, req.Key, revID, userID); err != nil {
-		if err.Error() == "revision not found" {
-			Fail(c, CodeRevisionNotFound, err.Error())
-		} else {
-			Fail(c, configWriteErrorCode(err), err.Error())
-		}
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	h.auditSvc.Log(c.Request.Context(), userID, "rollback", "config", req.Key, req.Env, c.ClientIP())

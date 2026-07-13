@@ -9,17 +9,26 @@ import (
 )
 
 func TestConfigWriteErrorCode(t *testing.T) {
-	validationErr := &service.ConfigValidationError{
-		Format: "YAML",
-		Err:    errors.New("line 2: unexpected end"),
+	tests := []struct {
+		name string
+		err  error
+		code int
+	}{
+		{name: "validation", err: &service.ConfigValidationError{Format: "YAML", Err: errors.New("line 2: unexpected end")}, code: CodeParamInvalid},
+		{name: "key exists", err: service.ErrKeyExists, code: CodeKeyExists},
+		{name: "key not found", err: service.ErrKeyNotFound, code: CodeKeyNotFound},
+		{name: "conflict", err: service.ErrConfigConflict, code: CodeConfigConflict},
+		{name: "forbidden", err: domain.ErrEnvironmentForbidden, code: CodeForbidden},
+		{name: "revision not found", err: service.ErrRevisionNotFound, code: CodeRevisionNotFound},
+		{name: "persistence compensated", err: &service.ConfigPersistenceError{Err: errors.New("db"), Compensated: true}, code: CodeInternalError},
+		{name: "inconsistent", err: &service.ConfigPersistenceError{Err: errors.New("db"), CompensationErr: errors.New("etcd")}, code: CodeInternalError},
+		{name: "generic", err: errors.New("etcd unavailable"), code: CodeEtcdOpFailed},
 	}
-	if got := configWriteErrorCode(validationErr); got != CodeParamInvalid {
-		t.Fatalf("validation code = %d, want %d", got, CodeParamInvalid)
-	}
-	if got := configWriteErrorCode(errors.New("etcd unavailable")); got != CodeEtcdOpFailed {
-		t.Fatalf("generic code = %d, want %d", got, CodeEtcdOpFailed)
-	}
-	if got := configWriteErrorCode(domain.ErrEnvironmentForbidden); got != CodeForbidden {
-		t.Fatalf("forbidden code = %d, want %d", got, CodeForbidden)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := configWriteErrorCode(tt.err); got != tt.code {
+				t.Fatalf("code = %d, want %d", got, tt.code)
+			}
+		})
 	}
 }

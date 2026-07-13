@@ -17,6 +17,7 @@ const (
 	CodeRevisionNotFound = 20003
 	CodeEnvExists        = 20004
 	CodeEnvHasConfigs    = 20005
+	CodeConfigConflict   = 20006
 	CodeEtcdConnFailed   = 30001
 	CodeEtcdOpFailed     = 30002
 	CodeUserExists       = 40001
