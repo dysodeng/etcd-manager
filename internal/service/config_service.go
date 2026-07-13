@@ -60,6 +60,9 @@ func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]Con
 }
 
 func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment string, operatorID uuid.UUID) error {
+	if err := ValidateConfig(key, value); err != nil {
+		return err
+	}
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
@@ -88,6 +91,9 @@ func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment
 }
 
 func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment string, operatorID uuid.UUID) error {
+	if err := ValidateConfig(key, value); err != nil {
+		return err
+	}
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("environment not found: %s", envName)
@@ -194,15 +200,23 @@ func (s *ConfigService) Import(ctx context.Context, envName string, data []byte,
 		}
 	}
 	result := &ImportResult{Total: len(configs)}
+	validConfigs := make(map[string]string, len(configs))
+	for key, value := range configs {
+		if err := ValidateConfig(key, value); err != nil {
+			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", key, err))
+			continue
+		}
+		validConfigs[key] = value
+	}
 	if dryRun {
-		result.Success = result.Total
+		result.Success = len(validConfigs)
 		return result, nil
 	}
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return nil, fmt.Errorf("environment not found: %s", envName)
 	}
-	for key, value := range configs {
+	for key, value := range validConfigs {
 		fullKey := env.KeyPrefix + env.ConfigPrefix + key
 		existing, _ := s.etcdClient.Get(ctx, fullKey)
 		action := "create"
