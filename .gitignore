@@ -32,3 +32,4 @@ go.work.sum
 
 # superpowers brainstorm artifacts
 .superpowers/
+.claude
