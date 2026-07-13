@@ -84,7 +84,10 @@ func FilterEnvironments(roleRepo domain.RoleRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		isSuper, _ := c.Get("is_super")
 		if isSuper == true {
-			// 超级管理员不做过滤
+			c.Request = c.Request.WithContext(domain.WithEnvironmentScope(
+				c.Request.Context(),
+				domain.EnvironmentScope{Unrestricted: true},
+			))
 			c.Next()
 			return
 		}
@@ -112,6 +115,10 @@ func FilterEnvironments(roleRepo domain.RoleRepository) gin.HandlerFunc {
 		}
 
 		c.Set("allowed_env_ids", envIDs)
+		c.Request = c.Request.WithContext(domain.WithEnvironmentScope(
+			c.Request.Context(),
+			domain.EnvironmentScope{AllowedIDs: envIDs},
+		))
 		c.Next()
 	}
 }

@@ -40,10 +40,21 @@ type ConfigItem struct {
 	Value string `json:"value"`
 }
 
-func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]ConfigItem, error) {
+func (s *ConfigService) resolveAuthorizedEnvironment(ctx context.Context, envName string) (*domain.Environment, error) {
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
 		return nil, fmt.Errorf("environment not found: %s", envName)
+	}
+	if err := domain.RequireEnvironmentAccess(ctx, env.ID); err != nil {
+		return nil, err
+	}
+	return env, nil
+}
+
+func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]ConfigItem, error) {
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
+	if err != nil {
+		return nil, err
 	}
 	configBase := env.KeyPrefix + env.ConfigPrefix
 	fullPrefix := configBase + prefix
@@ -63,9 +74,9 @@ func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment
 	if err := ValidateConfig(key, value); err != nil {
 		return err
 	}
-	env, err := s.envRepo.GetByName(ctx, envName)
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
 	if err != nil {
-		return fmt.Errorf("environment not found: %s", envName)
+		return err
 	}
 	fullKey := env.KeyPrefix + env.ConfigPrefix + key
 	existing, err := s.etcdClient.Get(ctx, fullKey)
@@ -94,9 +105,9 @@ func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment
 	if err := ValidateConfig(key, value); err != nil {
 		return err
 	}
-	env, err := s.envRepo.GetByName(ctx, envName)
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
 	if err != nil {
-		return fmt.Errorf("environment not found: %s", envName)
+		return err
 	}
 	fullKey := env.KeyPrefix + env.ConfigPrefix + key
 	existing, err := s.etcdClient.Get(ctx, fullKey)
@@ -124,9 +135,9 @@ func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment
 }
 
 func (s *ConfigService) Delete(ctx context.Context, envName, key string, operatorID uuid.UUID) error {
-	env, err := s.envRepo.GetByName(ctx, envName)
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
 	if err != nil {
-		return fmt.Errorf("environment not found: %s", envName)
+		return err
 	}
 	fullKey := env.KeyPrefix + env.ConfigPrefix + key
 	existing, err := s.etcdClient.Get(ctx, fullKey)
@@ -152,14 +163,17 @@ func (s *ConfigService) Delete(ctx context.Context, envName, key string, operato
 }
 
 func (s *ConfigService) Revisions(ctx context.Context, envName, key string, page, pageSize int) ([]domain.ConfigRevision, int64, error) {
-	env, err := s.envRepo.GetByName(ctx, envName)
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
 	if err != nil {
-		return nil, 0, fmt.Errorf("environment not found: %s", envName)
+		return nil, 0, err
 	}
 	return s.revisionRepo.ListByKey(ctx, env.ID, key, page, pageSize)
 }
 
 func (s *ConfigService) Rollback(ctx context.Context, envName, key string, revisionID uuid.UUID, operatorID uuid.UUID) error {
+	if _, err := s.resolveAuthorizedEnvironment(ctx, envName); err != nil {
+		return err
+	}
 	rev, err := s.revisionRepo.GetByID(ctx, revisionID)
 	if err != nil {
 		return errors.New("revision not found")
@@ -193,6 +207,10 @@ type ImportResult struct {
 }
 
 func (s *ConfigService) Import(ctx context.Context, envName string, data []byte, dryRun bool, operatorID uuid.UUID) (*ImportResult, error) {
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
+	if err != nil {
+		return nil, err
+	}
 	var configs map[string]string
 	if err := json.Unmarshal(data, &configs); err != nil {
 		if err := yaml.Unmarshal(data, &configs); err != nil {
@@ -211,10 +229,6 @@ func (s *ConfigService) Import(ctx context.Context, envName string, data []byte,
 	if dryRun {
 		result.Success = len(validConfigs)
 		return result, nil
-	}
-	env, err := s.envRepo.GetByName(ctx, envName)
-	if err != nil {
-		return nil, fmt.Errorf("environment not found: %s", envName)
 	}
 	for key, value := range validConfigs {
 		fullKey := env.KeyPrefix + env.ConfigPrefix + key

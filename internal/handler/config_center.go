@@ -27,6 +27,9 @@ func NewConfigCenterHandler(
 }
 
 func configWriteErrorCode(err error) int {
+	if errors.Is(err, domain.ErrEnvironmentForbidden) {
+		return CodeForbidden
+	}
 	var validationErr *service.ConfigValidationError
 	if errors.As(err, &validationErr) {
 		return CodeParamInvalid
@@ -145,7 +148,7 @@ func (h *ConfigCenterHandler) ListConfigs(c *gin.Context) {
 	}
 	items, err := h.configSvc.List(c.Request.Context(), env, prefix)
 	if err != nil {
-		Fail(c, CodeEtcdOpFailed, err.Error())
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	OK(c, items)
@@ -213,7 +216,7 @@ func (h *ConfigCenterHandler) DeleteConfig(c *gin.Context) {
 		return
 	}
 	if err := h.configSvc.Delete(c.Request.Context(), env, key, userID); err != nil {
-		Fail(c, CodeEtcdOpFailed, err.Error())
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	h.auditSvc.Log(c.Request.Context(), userID, "delete", "config", key, env, c.ClientIP())
@@ -234,7 +237,7 @@ func (h *ConfigCenterHandler) Revisions(c *gin.Context) {
 	}
 	revs, total, err := h.configSvc.Revisions(c.Request.Context(), env, key, page, pageSize)
 	if err != nil {
-		Fail(c, CodeEtcdOpFailed, err.Error())
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	OKPage(c, revs, total, page, pageSize)
@@ -279,7 +282,7 @@ func (h *ConfigCenterHandler) Export(c *gin.Context) {
 	}
 	data, err := h.configSvc.Export(c.Request.Context(), env, format)
 	if err != nil {
-		Fail(c, CodeEtcdOpFailed, err.Error())
+		Fail(c, configWriteErrorCode(err), err.Error())
 		return
 	}
 	c.Header("Content-Disposition", "attachment; filename=config-"+env+"."+format)
@@ -304,7 +307,11 @@ func (h *ConfigCenterHandler) Import(c *gin.Context) {
 	}
 	result, err := h.configSvc.Import(c.Request.Context(), env, body, dryRun, userID)
 	if err != nil {
-		Fail(c, CodeImportFormat, err.Error())
+		code := CodeImportFormat
+		if errors.Is(err, domain.ErrEnvironmentForbidden) {
+			code = CodeForbidden
+		}
+		Fail(c, code, err.Error())
 		return
 	}
 	if len(result.Failed) > 0 {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/dysodeng/etcd-manager/internal/domain"
 	"github.com/dysodeng/etcd-manager/internal/service"
 )
 
@@ -17,5 +18,8 @@ func TestConfigWriteErrorCode(t *testing.T) {
 	}
 	if got := configWriteErrorCode(errors.New("etcd unavailable")); got != CodeEtcdOpFailed {
 		t.Fatalf("generic code = %d, want %d", got, CodeEtcdOpFailed)
+	}
+	if got := configWriteErrorCode(domain.ErrEnvironmentForbidden); got != CodeForbidden {
+		t.Fatalf("forbidden code = %d, want %d", got, CodeForbidden)
 	}
 }

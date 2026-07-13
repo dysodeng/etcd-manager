@@ -58,7 +58,7 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, userRepo domai
 		}
 
 		// KV 管理
-		kv := auth.Group("/kv", middleware.RequirePermission("kv", roleRepo), middleware.FilterEnvironments(roleRepo))
+		kv := auth.Group("/kv", middleware.RequirePermission("kv", roleRepo))
 		{
 			kv.GET("", h.KV.Get)
 			kv.POST("", h.KV.Create)
@@ -91,7 +91,7 @@ func RegisterRoutes(r *gin.Engine, h *Handlers, jwtSecret string, userRepo domai
 		}
 
 		// Watch（SSE）
-		auth.GET("/watch", middleware.RequirePermission("kv", roleRepo), middleware.FilterEnvironments(roleRepo), h.Watch.Watch)
+		auth.GET("/watch", middleware.RequirePermission("kv", roleRepo), h.Watch.Watch)
 
 		// 集群信息
 		cluster := auth.Group("/cluster", middleware.RequirePermission("cluster", roleRepo))
