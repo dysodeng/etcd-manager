@@ -23,20 +23,11 @@ export default function GrpcPage() {
   const [loading, setLoading] = useState(false)
   const [previewJson, setPreviewJson] = useState<string | null>(null)
 
-  const getPrefix = () => {
-    if (!currentEnv?.key_prefix) return ''
-    const base = currentEnv.key_prefix.endsWith('/')
-      ? currentEnv.key_prefix
-      : currentEnv.key_prefix + '/'
-    return base + (currentEnv.grpc_prefix || 'grpc-services/')
-  }
-
   const fetchData = async () => {
-    const prefix = getPrefix()
-    if (!prefix) return
+    if (!currentEnv?.name) return
     setLoading(true)
     try {
-      const data = await grpcApi.list(prefix)
+      const data = await grpcApi.list(currentEnv.name)
       setGroups(data ?? [])
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '加载失败')
@@ -46,13 +37,13 @@ export default function GrpcPage() {
   }
 
   useEffect(() => {
-    if (currentEnv?.key_prefix) fetchData()
+    if (currentEnv?.name) fetchData()
   }, [currentEnv])
 
   const handleUpdateStatus = async (instance: GrpcInstance, status: 'up' | 'down') => {
-    const key = getPrefix() + instance.service_name + '/' + instance.instance_id
+    if (!currentEnv?.name) return
     try {
-      await grpcApi.updateStatus(key, status)
+      await grpcApi.updateStatus(currentEnv.name, instance.key, status)
       message.success(status === 'up' ? '实例已上线' : '实例已下线')
       fetchData()
     } catch (err: unknown) {

@@ -255,6 +255,7 @@ export interface WatchEvent {
 
 // Gateway
 export interface ServiceInstance {
+  key: string
   id: string
   service_name: string
   host: string
@@ -276,6 +277,7 @@ export interface ServiceGroup {
 
 // gRPC Service
 export interface GrpcInstance {
+  key: string
   service_name: string
   version: string
   address: string

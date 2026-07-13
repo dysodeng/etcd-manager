@@ -23,20 +23,11 @@ export default function GatewayPage() {
   const [loading, setLoading] = useState(false)
   const [previewJson, setPreviewJson] = useState<string | null>(null)
 
-  const getPrefix = () => {
-    if (!currentEnv?.key_prefix) return ''
-    const base = currentEnv.key_prefix.endsWith('/')
-      ? currentEnv.key_prefix
-      : currentEnv.key_prefix + '/'
-    return base + (currentEnv.gateway_prefix || 'gw-services/')
-  }
-
   const fetchData = async () => {
-    const prefix = getPrefix()
-    if (!prefix) return
+    if (!currentEnv?.name) return
     setLoading(true)
     try {
-      const data = await gatewayApi.list(prefix)
+      const data = await gatewayApi.list(currentEnv.name)
       setGroups(data ?? [])
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '加载失败')
@@ -46,13 +37,13 @@ export default function GatewayPage() {
   }
 
   useEffect(() => {
-    if (currentEnv?.key_prefix) fetchData()
+    if (currentEnv?.name) fetchData()
   }, [currentEnv])
 
   const handleUpdateStatus = async (instance: ServiceInstance, status: 'up' | 'down') => {
-    const key = getPrefix() + instance.service_name + '/' + instance.id
+    if (!currentEnv?.name) return
     try {
-      await gatewayApi.updateStatus(key, status)
+      await gatewayApi.updateStatus(currentEnv.name, instance.key, status)
       message.success(status === 'up' ? '实例已上线' : '实例已下线')
       fetchData()
     } catch (err: unknown) {
