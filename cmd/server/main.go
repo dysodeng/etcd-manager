@@ -97,7 +97,7 @@ func main() {
 	envSvc := service.NewEnvironmentService(envRepo, etcdClient)
 	auditSvc := service.NewAuditService(auditRepo)
 	kvSvc := service.NewKVService(etcdClient)
-	configSvc := service.NewConfigService(etcdClient, envRepo, revisionRepo, txManager)
+	configSvc := service.NewConfigService(etcdClient, envRepo, revisionRepo)
 	clusterSvc := service.NewClusterService(etcdClient)
 	gatewaySvc := service.NewGatewayService(etcdClient)
 	grpcSvc := service.NewGrpcServiceManager(etcdClient)

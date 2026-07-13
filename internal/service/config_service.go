@@ -15,23 +15,20 @@ import (
 )
 
 type ConfigService struct {
-	etcdClient   *etcd.Client
+	configStore  etcd.ConfigStore
 	envRepo      domain.EnvironmentRepository
 	revisionRepo domain.ConfigRevisionRepository
-	txManager    domain.TransactionManager
 }
 
 func NewConfigService(
-	etcdClient *etcd.Client,
+	configStore etcd.ConfigStore,
 	envRepo domain.EnvironmentRepository,
 	revisionRepo domain.ConfigRevisionRepository,
-	txManager domain.TransactionManager,
 ) *ConfigService {
 	return &ConfigService{
-		etcdClient:   etcdClient,
+		configStore:  configStore,
 		envRepo:      envRepo,
 		revisionRepo: revisionRepo,
-		txManager:    txManager,
 	}
 }
 
@@ -58,7 +55,7 @@ func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]Con
 	}
 	configBase := env.KeyPrefix + env.ConfigPrefix
 	fullPrefix := configBase + prefix
-	resp, err := s.etcdClient.GetWithPrefix(ctx, fullPrefix, 0)
+	resp, err := s.configStore.GetWithPrefix(ctx, fullPrefix, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -79,26 +76,23 @@ func (s *ConfigService) Create(ctx context.Context, envName, key, value, comment
 		return err
 	}
 	fullKey := env.KeyPrefix + env.ConfigPrefix + key
-	existing, err := s.etcdClient.Get(ctx, fullKey)
+	result, err := s.configStore.CreateIfAbsent(ctx, fullKey, value)
 	if err != nil {
 		return err
 	}
-	if len(existing.Kvs) > 0 {
-		return errors.New("key already exists")
+	if !result.Succeeded {
+		return ErrKeyExists
 	}
-	resp, err := s.etcdClient.Put(ctx, fullKey, value)
-	if err != nil {
-		return err
-	}
-	return s.revisionRepo.Create(ctx, &domain.ConfigRevision{
+	revision := &domain.ConfigRevision{
 		EnvironmentID: env.ID,
 		Key:           key,
 		Value:         value,
-		EtcdRevision:  resp.Header.Revision,
+		EtcdRevision:  result.Revision,
 		Action:        "create",
 		Operator:      operatorID,
 		Comment:       comment,
-	})
+	}
+	return s.persistRevisionWithCompensation(ctx, "create", fullKey, etcd.ConfigSnapshot{}, result.Revision, revision)
 }
 
 func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment string, operatorID uuid.UUID) error {
@@ -109,29 +103,7 @@ func (s *ConfigService) Update(ctx context.Context, envName, key, value, comment
 	if err != nil {
 		return err
 	}
-	fullKey := env.KeyPrefix + env.ConfigPrefix + key
-	existing, err := s.etcdClient.Get(ctx, fullKey)
-	if err != nil {
-		return err
-	}
-	var prevValue string
-	if len(existing.Kvs) > 0 {
-		prevValue = string(existing.Kvs[0].Value)
-	}
-	resp, err := s.etcdClient.Put(ctx, fullKey, value)
-	if err != nil {
-		return err
-	}
-	return s.revisionRepo.Create(ctx, &domain.ConfigRevision{
-		EnvironmentID: env.ID,
-		Key:           key,
-		Value:         value,
-		PrevValue:     prevValue,
-		EtcdRevision:  resp.Header.Revision,
-		Action:        "update",
-		Operator:      operatorID,
-		Comment:       comment,
-	})
+	return s.upsertConfig(ctx, env, key, value, comment, operatorID, "update", "update")
 }
 
 func (s *ConfigService) Delete(ctx context.Context, envName, key string, operatorID uuid.UUID) error {
@@ -140,26 +112,29 @@ func (s *ConfigService) Delete(ctx context.Context, envName, key string, operato
 		return err
 	}
 	fullKey := env.KeyPrefix + env.ConfigPrefix + key
-	existing, err := s.etcdClient.Get(ctx, fullKey)
+	before, err := s.configStore.GetConfig(ctx, fullKey)
 	if err != nil {
 		return err
 	}
-	var prevValue string
-	if len(existing.Kvs) > 0 {
-		prevValue = string(existing.Kvs[0].Value)
+	if !before.Exists {
+		return ErrKeyNotFound
 	}
-	resp, err := s.etcdClient.Delete(ctx, fullKey)
+	result, err := s.configStore.DeleteIfModRevision(ctx, fullKey, before.ModRevision)
 	if err != nil {
 		return err
 	}
-	return s.revisionRepo.Create(ctx, &domain.ConfigRevision{
+	if !result.Succeeded {
+		return ErrConfigConflict
+	}
+	revision := &domain.ConfigRevision{
 		EnvironmentID: env.ID,
 		Key:           key,
-		PrevValue:     prevValue,
-		EtcdRevision:  resp.Header.Revision,
+		PrevValue:     before.Value,
+		EtcdRevision:  result.Revision,
 		Action:        "delete",
 		Operator:      operatorID,
-	})
+	}
+	return s.persistRevisionWithCompensation(ctx, "delete", fullKey, before, result.Revision, revision)
 }
 
 func (s *ConfigService) Revisions(ctx context.Context, envName, key string, page, pageSize int) ([]domain.ConfigRevision, int64, error) {
@@ -171,14 +146,21 @@ func (s *ConfigService) Revisions(ctx context.Context, envName, key string, page
 }
 
 func (s *ConfigService) Rollback(ctx context.Context, envName, key string, revisionID uuid.UUID, operatorID uuid.UUID) error {
-	if _, err := s.resolveAuthorizedEnvironment(ctx, envName); err != nil {
+	env, err := s.resolveAuthorizedEnvironment(ctx, envName)
+	if err != nil {
 		return err
 	}
 	rev, err := s.revisionRepo.GetByID(ctx, revisionID)
 	if err != nil {
-		return errors.New("revision not found")
+		return ErrRevisionNotFound
 	}
-	return s.Update(ctx, envName, key, rev.Value, fmt.Sprintf("rollback to revision %s", revisionID), operatorID)
+	if rev.EnvironmentID != env.ID || rev.Key != key || rev.Action == "delete" {
+		return ErrRevisionNotFound
+	}
+	if err := ValidateConfig(key, rev.Value); err != nil {
+		return err
+	}
+	return s.upsertConfig(ctx, env, key, rev.Value, fmt.Sprintf("rollback to revision %s", revisionID), operatorID, "update", "update")
 }
 
 func (s *ConfigService) Export(ctx context.Context, envName, format string) ([]byte, error) {
@@ -231,30 +213,78 @@ func (s *ConfigService) Import(ctx context.Context, envName string, data []byte,
 		return result, nil
 	}
 	for key, value := range validConfigs {
-		fullKey := env.KeyPrefix + env.ConfigPrefix + key
-		existing, _ := s.etcdClient.Get(ctx, fullKey)
-		action := "create"
-		var prevValue string
-		if len(existing.Kvs) > 0 {
-			action = "update"
-			prevValue = string(existing.Kvs[0].Value)
-		}
-		resp, err := s.etcdClient.Put(ctx, fullKey, value)
-		if err != nil {
-			result.Failed = append(result.Failed, key)
+		if err := s.upsertConfig(ctx, env, key, value, "import", operatorID, "update", "create"); err != nil {
+			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", key, err))
 			continue
 		}
-		_ = s.revisionRepo.Create(ctx, &domain.ConfigRevision{
-			EnvironmentID: env.ID,
-			Key:           key,
-			Value:         value,
-			PrevValue:     prevValue,
-			EtcdRevision:  resp.Header.Revision,
-			Action:        action,
-			Operator:      operatorID,
-			Comment:       "import",
-		})
 		result.Success++
 	}
 	return result, nil
+}
+
+func (s *ConfigService) upsertConfig(
+	ctx context.Context,
+	env *domain.Environment,
+	key, value, comment string,
+	operatorID uuid.UUID,
+	existingAction, absentAction string,
+) error {
+	fullKey := env.KeyPrefix + env.ConfigPrefix + key
+	before, err := s.configStore.GetConfig(ctx, fullKey)
+	if err != nil {
+		return err
+	}
+	action := absentAction
+	var result etcd.ConditionalResult
+	if before.Exists {
+		action = existingAction
+		result, err = s.configStore.PutIfModRevision(ctx, fullKey, value, before.ModRevision)
+	} else {
+		result, err = s.configStore.CreateIfAbsent(ctx, fullKey, value)
+	}
+	if err != nil {
+		return err
+	}
+	if !result.Succeeded {
+		return ErrConfigConflict
+	}
+	revision := &domain.ConfigRevision{
+		EnvironmentID: env.ID,
+		Key:           key,
+		Value:         value,
+		PrevValue:     before.Value,
+		EtcdRevision:  result.Revision,
+		Action:        action,
+		Operator:      operatorID,
+		Comment:       comment,
+	}
+	return s.persistRevisionWithCompensation(ctx, action, fullKey, before, result.Revision, revision)
+}
+
+func (s *ConfigService) persistRevisionWithCompensation(
+	ctx context.Context,
+	operation, fullKey string,
+	before etcd.ConfigSnapshot,
+	writtenRevision int64,
+	revision *domain.ConfigRevision,
+) error {
+	if err := s.revisionRepo.Create(ctx, revision); err != nil {
+		var compensated bool
+		var compensationErr error
+		switch {
+		case operation == "delete":
+			compensated, compensationErr = s.configStore.RestoreIfAbsent(ctx, fullKey, before)
+		case before.Exists:
+			compensated, compensationErr = s.configStore.RestoreIfModRevision(ctx, fullKey, before, writtenRevision)
+		default:
+			compensated, compensationErr = s.configStore.DeleteIfModRevisionForCompensation(ctx, fullKey, writtenRevision)
+		}
+		return &ConfigPersistenceError{
+			Operation:       operation,
+			Err:             err,
+			Compensated:     compensated,
+			CompensationErr: compensationErr,
+		}
+	}
+	return nil
 }
