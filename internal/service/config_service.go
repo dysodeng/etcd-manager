@@ -65,14 +65,22 @@ func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]Con
 		return nil, err
 	}
 	if len(resp.Kvs) > MaxConfigListItems {
-		return nil, ErrConfigListLimitExceeded
+		return nil, fmt.Errorf(
+			"%w: more than %d items; narrow the prefix",
+			ErrConfigListLimitExceeded,
+			MaxConfigListItems,
+		)
 	}
 	items := make([]ConfigItem, 0, len(resp.Kvs))
 	totalBytes := 0
 	for _, kv := range resp.Kvs {
 		totalBytes += len(kv.Key) + len(kv.Value)
 		if totalBytes > MaxConfigListBytes {
-			return nil, ErrConfigListLimitExceeded
+			return nil, fmt.Errorf(
+				"%w: response exceeds %d bytes; narrow the prefix",
+				ErrConfigListLimitExceeded,
+				MaxConfigListBytes,
+			)
 		}
 		shortKey := strings.TrimPrefix(string(kv.Key), configBase)
 		items = append(items, ConfigItem{Key: shortKey, Value: string(kv.Value)})
