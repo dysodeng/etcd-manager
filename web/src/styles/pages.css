@@ -122,3 +122,7 @@
 .service-groups .ant-collapse-content-box {
   padding: 0;
 }
+
+.service-count .ant-badge-count {
+  background: var(--primary);
+}

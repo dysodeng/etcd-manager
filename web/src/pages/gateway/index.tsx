@@ -111,7 +111,7 @@ export default function GatewayPage() {
     label: (
       <Space>
         <span style={{ fontWeight: 500 }}>{group.service_name}</span>
-        <Badge count={group.instance_count} style={{ backgroundColor: '#1677ff' }} />
+        <Badge className="service-count" count={group.instance_count} />
         <StatusBadge tone="success">{group.healthy_count} 正常</StatusBadge>
         {group.unhealthy_count > 0 && <StatusBadge tone="danger">{group.unhealthy_count} 下线</StatusBadge>}
       </Space>
