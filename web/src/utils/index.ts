@@ -9,7 +9,6 @@ export function formatUnixTime(ts: number): string {
   return dayjs.unix(ts).format('YYYY-MM-DD HH:mm:ss')
 }
 
-// @ts-ignore
 export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     return navigator.clipboard.writeText(text)
