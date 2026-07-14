@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dysodeng/etcd-manager/internal/etcd"
+	"go.etcd.io/etcd/api/v3/etcdserverpb"
 )
 
 type ClusterService struct {
@@ -76,6 +77,28 @@ type ClusterMetrics struct {
 	Health      map[string]bool `json:"health"`
 }
 
+func memberClientEndpoints(members []*etcdserverpb.Member, fallback []string) []string {
+	endpoints := make([]string, 0, len(members))
+	seen := make(map[string]struct{}, len(members))
+	for _, member := range members {
+		for _, endpoint := range member.ClientURLs {
+			if endpoint == "" {
+				continue
+			}
+			if _, exists := seen[endpoint]; exists {
+				continue
+			}
+			seen[endpoint] = struct{}{}
+			endpoints = append(endpoints, endpoint)
+			break
+		}
+	}
+	if len(endpoints) > 0 {
+		return endpoints
+	}
+	return fallback
+}
+
 func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -90,7 +113,7 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		memberNames[m.ID] = m.Name
 	}
 
-	endpoints := s.etcdClient.Endpoints()
+	endpoints := memberClientEndpoints(memberResp.Members, s.etcdClient.Endpoints())
 	metrics := &ClusterMetrics{
 		ClusterID:   fmt.Sprintf("%x", memberResp.Header.ClusterId),
 		MemberCount: len(memberResp.Members),
@@ -121,13 +144,13 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 type MemberStatus struct {
 	Name             string `json:"name"`
 	Endpoint         string `json:"endpoint"`
-	DBSize           int64  `json:"db_size"`            // DB 文件总大小
-	DBSizeInUse      int64  `json:"db_size_in_use"`     // DB 实际使用大小，差值为碎片空间
+	DBSize           int64  `json:"db_size"`        // DB 文件总大小
+	DBSizeInUse      int64  `json:"db_size_in_use"` // DB 实际使用大小，差值为碎片空间
 	Version          string `json:"version"`
-	RaftIndex        uint64 `json:"raft_index"`          // Raft 日志最新条目索引，代表集群收到的写操作总序号
-	RaftTerm         uint64 `json:"raft_term"`           // Raft 选举任期号，每次 Leader 选举 +1
-	RaftAppliedIndex uint64 `json:"raft_applied_index"`  // 已应用到状态机的日志索引，正常时应接近 RaftIndex
-	IsLearner        bool   `json:"is_learner"`          // Learner: 只读追随者，同步数据但不参与投票，用于安全扩容
+	RaftIndex        uint64 `json:"raft_index"`         // Raft 日志最新条目索引，代表集群收到的写操作总序号
+	RaftTerm         uint64 `json:"raft_term"`          // Raft 选举任期号，每次 Leader 选举 +1
+	RaftAppliedIndex uint64 `json:"raft_applied_index"` // 已应用到状态机的日志索引，正常时应接近 RaftIndex
+	IsLearner        bool   `json:"is_learner"`         // Learner: 只读追随者，同步数据但不参与投票，用于安全扩容
 	IsLeader         bool   `json:"is_leader"`
 }
 
@@ -151,7 +174,7 @@ func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, er
 	}
 
 	var results []MemberStatus
-	endpoints := s.etcdClient.Endpoints()
+	endpoints := memberClientEndpoints(memberResp.Members, s.etcdClient.Endpoints())
 	for _, ep := range endpoints {
 		sr, err := s.etcdClient.Status(ctx, ep)
 		if err != nil {
