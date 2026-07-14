@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
-import { Modal, Button, Tooltip } from 'antd'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Modal, Button, Spin, Tooltip } from 'antd'
 import { ExpandOutlined, CompressOutlined } from '@ant-design/icons'
-import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react'
+import type { EditorProps, Monaco } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
+
+const Editor = lazy(() => import('@monaco-editor/react'))
 
 function detectLanguage(value: string): string {
   const trimmed = value.trimStart()
@@ -61,15 +63,17 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
   return (
     <>
       <div style={{ position: 'relative' }}>
-        <Editor
-          height={height}
-          language={lang}
-          value={value}
-          onChange={(v) => onChange?.(v ?? '')}
-          options={options}
-          theme="vs-dark"
-          onMount={handleMount}
-        />
+        <Suspense fallback={<Spin style={{ display: 'block', margin: '48px auto' }} />}>
+          <Editor
+            height={height}
+            language={lang}
+            value={value}
+            onChange={(v) => onChange?.(v ?? '')}
+            options={options}
+            theme="vs-dark"
+            onMount={handleMount}
+          />
+        </Suspense>
         <Tooltip title="展开编辑器">
           <Button
             type="text"
@@ -103,15 +107,17 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
         }
         destroyOnHidden
       >
-        <Editor
-          height="80vh"
-          language={lang}
-          value={value}
-          onChange={(v) => onChange?.(v ?? '')}
-          options={expandedOptions}
-          theme="vs-dark"
-          onMount={handleMount}
-        />
+        <Suspense fallback={<Spin style={{ display: 'block', margin: '48px auto' }} />}>
+          <Editor
+            height="80vh"
+            language={lang}
+            value={value}
+            onChange={(v) => onChange?.(v ?? '')}
+            options={expandedOptions}
+            theme="vs-dark"
+            onMount={handleMount}
+          />
+        </Suspense>
       </Modal>
     </>
   )

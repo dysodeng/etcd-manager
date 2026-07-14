@@ -16,6 +16,24 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/monaco-editor/') || id.includes('/@monaco-editor/')) return 'monaco'
+          if (id.includes('/antd/') || id.includes('/@ant-design/') || id.includes('/dayjs/')) return 'antd'
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/react-router-dom/') ||
+            id.includes('/zustand/')
+          ) {
+            return 'react'
+          }
+        },
+      },
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
