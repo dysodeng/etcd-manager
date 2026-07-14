@@ -79,7 +79,35 @@ type ClusterMetrics struct {
 	Health      map[string]bool `json:"health"`
 }
 
-func memberClientEndpoints(members []*etcdserverpb.Member, fallback []string) []string {
+type memberProbeTarget struct {
+	memberID uint64
+	endpoint string
+}
+
+type memberProbeResult struct {
+	memberID uint64
+	endpoint string
+	status   *clientv3.StatusResponse
+	err      error
+}
+
+func uniqueEndpoints(endpoints []string) []string {
+	unique := make([]string, 0, len(endpoints))
+	seen := make(map[string]struct{}, len(endpoints))
+	for _, endpoint := range endpoints {
+		if endpoint == "" {
+			continue
+		}
+		if _, exists := seen[endpoint]; exists {
+			continue
+		}
+		seen[endpoint] = struct{}{}
+		unique = append(unique, endpoint)
+	}
+	return unique
+}
+
+func memberClientTargets(members []*etcdserverpb.Member, resolved map[uint64]memberProbeResult, usedEndpoints map[string]struct{}) []memberProbeTarget {
 	memberURLs := make([][]string, len(members))
 	owners := make(map[string]int, len(members))
 	for i, member := range members {
@@ -97,33 +125,33 @@ func memberClientEndpoints(members []*etcdserverpb.Member, fallback []string) []
 		}
 	}
 
-	endpoints := make([]string, 0, len(members))
-	selected := make(map[string]struct{}, len(members))
-	for _, urls := range memberURLs {
+	targets := make([]memberProbeTarget, 0, len(members)-len(resolved))
+	for i, urls := range memberURLs {
+		memberID := members[i].ID
+		if _, exists := resolved[memberID]; exists {
+			continue
+		}
 		chosen := ""
 		for _, endpoint := range urls {
-			if owners[endpoint] == 1 {
+			if _, used := usedEndpoints[endpoint]; !used && owners[endpoint] == 1 {
 				chosen = endpoint
 				break
 			}
 		}
 		if chosen == "" {
 			for _, endpoint := range urls {
-				if _, exists := selected[endpoint]; !exists {
+				if _, used := usedEndpoints[endpoint]; !used {
 					chosen = endpoint
 					break
 				}
 			}
 		}
 		if chosen != "" {
-			selected[chosen] = struct{}{}
-			endpoints = append(endpoints, chosen)
+			usedEndpoints[chosen] = struct{}{}
+			targets = append(targets, memberProbeTarget{memberID: memberID, endpoint: chosen})
 		}
 	}
-	if len(endpoints) > 0 {
-		return endpoints
-	}
-	return fallback
+	return targets
 }
 
 type endpointStatusResult struct {
@@ -147,6 +175,76 @@ func (s *ClusterService) probeEndpoints(ctx context.Context, endpoints []string)
 	return results
 }
 
+func (s *ClusterService) probeMembers(ctx context.Context, members []*etcdserverpb.Member) []memberProbeResult {
+	knownMembers := make(map[uint64]struct{}, len(members))
+	for _, member := range members {
+		knownMembers[member.ID] = struct{}{}
+	}
+
+	configuredEndpoints := uniqueEndpoints(s.etcdClient.Endpoints())
+	usedEndpoints := make(map[string]struct{}, len(configuredEndpoints))
+	for _, endpoint := range configuredEndpoints {
+		usedEndpoints[endpoint] = struct{}{}
+	}
+
+	resolved := make(map[uint64]memberProbeResult, len(members))
+	for _, result := range s.probeEndpoints(ctx, configuredEndpoints) {
+		if result.err != nil || result.status == nil || result.status.Header == nil {
+			continue
+		}
+		memberID := result.status.Header.MemberId
+		if _, known := knownMembers[memberID]; !known {
+			continue
+		}
+		if _, exists := resolved[memberID]; exists {
+			continue
+		}
+		resolved[memberID] = memberProbeResult{
+			memberID: memberID,
+			endpoint: result.endpoint,
+			status:   result.status,
+		}
+	}
+
+	failed := make(map[uint64]memberProbeResult)
+	targets := memberClientTargets(members, resolved, usedEndpoints)
+	advertisedEndpoints := make([]string, len(targets))
+	for i, target := range targets {
+		advertisedEndpoints[i] = target.endpoint
+	}
+	for i, result := range s.probeEndpoints(ctx, advertisedEndpoints) {
+		target := targets[i]
+		probe := memberProbeResult{
+			memberID: target.memberID,
+			endpoint: result.endpoint,
+			status:   result.status,
+			err:      result.err,
+		}
+		if result.err != nil || result.status == nil || result.status.Header == nil {
+			failed[target.memberID] = probe
+			continue
+		}
+		if result.status.Header.MemberId != target.memberID {
+			probe.err = fmt.Errorf("endpoint %s answered as member %x, want %x", result.endpoint, result.status.Header.MemberId, target.memberID)
+			failed[target.memberID] = probe
+			continue
+		}
+		resolved[target.memberID] = probe
+	}
+
+	results := make([]memberProbeResult, 0, len(members))
+	for _, member := range members {
+		if result, exists := resolved[member.ID]; exists {
+			results = append(results, result)
+			continue
+		}
+		if result, exists := failed[member.ID]; exists {
+			results = append(results, result)
+		}
+	}
+	return results
+}
+
 func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -161,13 +259,12 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		memberNames[m.ID] = m.Name
 	}
 
-	endpoints := memberClientEndpoints(memberResp.Members, s.etcdClient.Endpoints())
 	metrics := &ClusterMetrics{
 		ClusterID:   fmt.Sprintf("%x", memberResp.Header.ClusterId),
 		MemberCount: len(memberResp.Members),
 		Health:      make(map[string]bool),
 	}
-	for _, result := range s.probeEndpoints(ctx, endpoints) {
+	for _, result := range s.probeMembers(ctx, memberResp.Members) {
 		if result.err != nil {
 			metrics.Health[result.endpoint] = false
 			continue
@@ -222,21 +319,15 @@ func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, er
 	}
 
 	var results []MemberStatus
-	endpoints := memberClientEndpoints(memberResp.Members, s.etcdClient.Endpoints())
-	seenMemberIDs := make(map[uint64]struct{}, len(endpoints))
-	for _, result := range s.probeEndpoints(ctx, endpoints) {
+	for _, result := range s.probeMembers(ctx, memberResp.Members) {
 		if result.err != nil {
 			continue
 		}
 		sr := result.status
-		if _, exists := seenMemberIDs[sr.Header.MemberId]; exists {
-			continue
-		}
 		meta, exists := idToMember[sr.Header.MemberId]
 		if !exists {
 			continue
 		}
-		seenMemberIDs[sr.Header.MemberId] = struct{}{}
 		results = append(results, MemberStatus{
 			Name:             meta.Name,
 			Endpoint:         result.endpoint,

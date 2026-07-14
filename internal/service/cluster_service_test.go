@@ -52,6 +52,10 @@ func (s *clusterFixtureServer) Status(context.Context, *etcdserverpb.StatusReque
 }
 
 func newClusterServiceFixture(t *testing.T) (*ClusterService, []string, []*etcdserverpb.Member, []*clusterFixtureServer) {
+	return newClusterServiceFixtureWithConfiguredEndpoints(t, 1)
+}
+
+func newClusterServiceFixtureWithConfiguredEndpoints(t *testing.T, configuredEndpointCount int) (*ClusterService, []string, []*etcdserverpb.Member, []*clusterFixtureServer) {
 	t.Helper()
 
 	listeners := make([]net.Listener, 3)
@@ -91,13 +95,33 @@ func newClusterServiceFixture(t *testing.T) (*ClusterService, []string, []*etcds
 		t.Cleanup(server.Stop)
 	}
 
-	client, err := etcdclient.NewClient(config.EtcdConfig{Endpoints: []string{endpoints[0]}})
+	client, err := etcdclient.NewClient(config.EtcdConfig{Endpoints: endpoints[:configuredEndpointCount]})
 	if err != nil {
 		t.Fatalf("new etcd client: %v", err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
 	return NewClusterService(client), endpoints, members, servers
+}
+
+func TestClusterServiceMemberStatusesPreferReachableConfiguredEndpoints(t *testing.T) {
+	service, endpoints, members, _ := newClusterServiceFixtureWithConfiguredEndpoints(t, 3)
+	for i, member := range members {
+		member.ClientURLs = []string{fmt.Sprintf("http://127.0.0.1:%d", i+1)}
+	}
+
+	statuses, err := service.MemberStatuses(context.Background())
+	if err != nil {
+		t.Fatalf("member statuses: %v", err)
+	}
+	if len(statuses) != len(members) {
+		t.Fatalf("member status count = %d, want %d", len(statuses), len(members))
+	}
+	for i, status := range statuses {
+		if status.Endpoint != endpoints[i] {
+			t.Errorf("status[%d].Endpoint = %q, want reachable configured endpoint %q", i, status.Endpoint, endpoints[i])
+		}
+	}
 }
 
 func TestClusterServiceMemberStatusesDiscoversEveryMember(t *testing.T) {
@@ -165,7 +189,7 @@ func TestClusterServiceMemberStatusesPrefersUniqueMemberURLs(t *testing.T) {
 }
 
 func TestClusterServiceMemberStatusesProbesMembersConcurrently(t *testing.T) {
-	service, _, _, servers := newClusterServiceFixture(t)
+	service, _, _, servers := newClusterServiceFixtureWithConfiguredEndpoints(t, 3)
 	started := make(chan uint64, len(servers))
 	release := make(chan struct{})
 	released := false
