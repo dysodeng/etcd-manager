@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Tree, Card, Space, Button, Empty, Popconfirm, Tag, Descriptions } from 'antd'
+import { Tree, Space, Button, Popconfirm, Tag, Descriptions } from 'antd'
 import { FileOutlined, FolderOutlined, FolderOpenOutlined } from '@ant-design/icons'
 import type { KVItem } from '@/types'
 import type { KVTreeNode } from './buildKVTree'
 import MonacoEditor from '@/components/MonacoEditor'
+import { CopyableCode, EmptyState } from '@/components/ui'
 
 interface Props {
   treeData: KVTreeNode[]
@@ -25,12 +26,12 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
   }
 
   if (treeData.length === 0) {
-    return <Empty description="暂无 KV 数据" />
+    return <EmptyState title="暂无 KV 数据" description="当前前缀下没有可展示的键值" />
   }
 
   return (
-    <div style={{ display: 'flex', gap: 16 }}>
-      <Card style={{ width: 380, minHeight: 500, overflow: 'auto' }} size="small" title="Key 树">
+    <div className="resource-split">
+      <section className="resource-tree" aria-label="Key 树">
         <Tree<KVTreeNode>
           treeData={treeData}
           fieldNames={{ key: 'key', title: 'title', children: 'children' }}
@@ -40,21 +41,21 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
           onSelect={(_, info) => handleSelect(_, info as unknown as { node: KVTreeNode })}
           selectedKeys={selectedNode ? [selectedNode.key] : []}
         />
-      </Card>
+      </section>
 
-      <Card style={{ flex: 1, minHeight: 500 }} size="small" title={selectedNode ? selectedNode.key : 'Key 详情'}>
+      <section className="resource-detail" aria-label="Key 详情">
         {selectedNode?.kvItem ? (
-          <div>
-            <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
+          <div className="resource-detail__content">
+            <Descriptions className="resource-descriptions" column={2} size="small">
               <Descriptions.Item label="Key">
-                <span style={{ fontFamily: 'monospace' }}>{selectedNode.kvItem.key}</span>
+                <CopyableCode value={selectedNode.kvItem.key} />
               </Descriptions.Item>
               <Descriptions.Item label="Version">
                 <Tag>{selectedNode.kvItem.version}</Tag>
               </Descriptions.Item>
             </Descriptions>
 
-            <div style={{ marginBottom: 12 }}>
+            <div className="resource-editor">
               <MonacoEditor value={selectedNode.kvItem.value} readOnly height={360} />
             </div>
 
@@ -63,16 +64,20 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
                 <Button type="primary" size="small" onClick={() => onEdit(selectedNode.kvItem!)}>
                   编辑
                 </Button>
-                <Popconfirm title="确认删除？" onConfirm={() => { onDelete(selectedNode.kvItem!.key); setSelectedNode(null) }}>
+                <Popconfirm
+                  title="确认删除此键值？"
+                  description={`将永久删除 ${selectedNode.kvItem.key}`}
+                  onConfirm={() => { onDelete(selectedNode.kvItem!.key); setSelectedNode(null) }}
+                >
                   <Button danger size="small">删除</Button>
                 </Popconfirm>
               </Space>
             )}
           </div>
         ) : (
-          <Empty description="选择左侧 Key 查看详情" />
+          <EmptyState title="选择一个 Key" description="从左侧树中选择 Key 查看详情" />
         )}
-      </Card>
+      </section>
     </div>
   )
 }

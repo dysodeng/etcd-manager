@@ -5,6 +5,7 @@ import type { KVItem } from '@/types'
 import { kvApi } from '@/api/kv'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import MonacoEditor from '@/components/MonacoEditor'
+import { PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import KVTreeView from './KVTreeView'
 import { buildKVTree } from './buildKVTree'
 
@@ -79,7 +80,7 @@ export default function KVPage() {
     { title: 'Key', dataIndex: 'key', key: 'key', ellipsis: true },
     {
       title: 'Value', dataIndex: 'value', key: 'value', ellipsis: true,
-      render: (v: string) => <span style={{ fontFamily: 'monospace' }}>{v.length > 80 ? v.slice(0, 80) + '...' : v}</span>,
+      render: (v: string) => <span className="resource-value-preview">{v.length > 80 ? v.slice(0, 80) + '...' : v}</span>,
     },
     { title: 'Version', dataIndex: 'version', key: 'version', width: 100 },
     {
@@ -87,7 +88,12 @@ export default function KVPage() {
       render: (_: unknown, record: KVItem) => (
         <Space>
           <Button size="small" onClick={() => openEdit(record)} disabled={!isAdmin}>编辑</Button>
-          <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.key)} disabled={!isAdmin}>
+          <Popconfirm
+            title="确认删除此键值？"
+            description={`将永久删除 ${record.key}`}
+            onConfirm={() => handleDelete(record.key)}
+            disabled={!isAdmin}
+          >
             <Button size="small" danger disabled={!isAdmin}>删除</Button>
           </Popconfirm>
         </Space>
@@ -97,46 +103,55 @@ export default function KVPage() {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Space>
-          <Input
-            prefix={<SearchOutlined />}
-            placeholder="Key 前缀"
-            value={prefix}
-            onChange={(e) => setPrefix(e.target.value)}
-            onPressEnter={() => fetchData()}
-            style={{ width: 300 }}
+      <PageHeader
+        eyebrow="Key Value Store"
+        title="KV 管理"
+        description="浏览、检索和维护当前集群中的键值数据"
+        extra={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建键值</Button> : undefined}
+      />
+      <PageToolbar
+        trailing={(
+          <Segmented
+            value={viewMode}
+            onChange={(value) => setViewMode(value as 'list' | 'tree')}
+            options={[
+              { value: 'list', label: '列表', icon: <UnorderedListOutlined /> },
+              { value: 'tree', label: '树形', icon: <ApartmentOutlined /> },
+            ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
-          {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}
-        </Space>
-        <Segmented
-          value={viewMode}
-          onChange={(v) => setViewMode(v as 'list' | 'tree')}
-          options={[
-            { value: 'list', icon: <UnorderedListOutlined /> },
-            { value: 'tree', icon: <ApartmentOutlined /> },
-          ]}
+        )}
+      >
+        <Input
+          className="toolbar-search"
+          prefix={<SearchOutlined />}
+          placeholder="Key 前缀"
+          value={prefix}
+          onChange={(event) => setPrefix(event.target.value)}
+          onPressEnter={() => fetchData()}
         />
-      </div>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+      </PageToolbar>
 
-      {viewMode === 'list' ? (
-        <Table
-          rowKey="key"
-          columns={columns}
-          dataSource={items}
-          loading={loading}
-          pagination={false}
-          size="middle"
-        />
-      ) : (
-        <KVTreeView
-          treeData={buildKVTree(items)}
-          isAdmin={isAdmin}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-        />
-      )}
+      <SectionCard className="resource-card">
+        {viewMode === 'list' ? (
+          <Table
+            className="data-table"
+            rowKey="key"
+            columns={columns}
+            dataSource={items}
+            loading={loading}
+            pagination={false}
+            size="middle"
+          />
+        ) : (
+          <KVTreeView
+            treeData={buildKVTree(items)}
+            isAdmin={isAdmin}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
+        )}
+      </SectionCard>
 
       <Modal
         title={editing ? '编辑 KV' : '新建 KV'}

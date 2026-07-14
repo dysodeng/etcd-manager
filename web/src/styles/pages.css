@@ -46,9 +46,41 @@
 }
 
 .resource-split {
+  min-height: 500px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 20px;
+  grid-template-columns: 380px minmax(0, 1fr);
+}
+
+.resource-tree {
+  overflow: auto;
+  padding: 16px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.resource-detail {
+  min-width: 0;
+  padding: 18px;
+}
+
+.resource-descriptions {
+  margin-bottom: 16px;
+}
+
+.resource-editor {
+  margin-bottom: 12px;
+}
+
+.resource-value-preview {
+  display: block;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-value-preview .copyable-code {
+  max-width: 100%;
 }
 
 .metric-grid--three {
@@ -57,6 +89,20 @@
 
 .toolbar-search {
   width: 300px;
+}
+
+.toolbar-search--compact {
+  width: 260px;
+}
+
+.toolbar-export-select {
+  width: 120px;
+}
+
+.drawer-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .service-groups .ant-collapse-item {

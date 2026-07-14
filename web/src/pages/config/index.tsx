@@ -5,14 +5,15 @@ import {
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, SearchOutlined,
-  HistoryOutlined, ImportOutlined, ExportOutlined, RollbackOutlined, EyeOutlined, CopyOutlined,
+  HistoryOutlined, ImportOutlined, ExportOutlined, RollbackOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import type { ConfigItem, ConfigRevision } from '@/types'
 import { configApi } from '@/api/config'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
-import { formatTime, downloadBlob, copyText } from '@/utils'
+import { CopyableCode, EmptyState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
+import { formatTime, downloadBlob } from '@/utils'
 
 export default function ConfigPage() {
   const currentEnv = useEnvironmentStore((s) => s.current)
@@ -149,32 +150,39 @@ export default function ConfigPage() {
   }
 
   if (!currentEnv) {
-    return <div style={{ textAlign: 'center', padding: 48, color: '#999' }}>请先在顶栏选择环境</div>
+    return (
+      <>
+        <PageHeader
+          eyebrow="Configuration Center"
+          title="配置管理"
+          description="按环境维护配置内容、变更历史与版本回滚"
+        />
+        <SectionCard className="resource-card">
+          <EmptyState title="尚未选择环境" description="请先在顶栏选择环境，再查看和维护配置" />
+        </SectionCard>
+      </>
+    )
   }
 
-  const copyFullKey = (key: string) => {
+  const getFullKey = (key: string) => {
     const prefix = currentEnv?.config_prefix ?? ''
     const base = currentEnv?.key_prefix ?? ''
     const normalizedBase = base.endsWith('/') ? base : base + '/'
-    const fullKey = normalizedBase + prefix + key
-    copyText(fullKey).then(() => message.success('已复制'))
+    return normalizedBase + prefix + key
   }
 
   const columns = [
     {
       title: 'Key', dataIndex: 'key', key: 'key', ellipsis: true,
-      render: (v: string) => (
-        <Space>
-          <span>{v}</span>
-          <Tooltip title="复制完整 Key">
-            <CopyOutlined style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => copyFullKey(v)} />
-          </Tooltip>
-        </Space>
-      ),
+      render: (v: string) => <CopyableCode value={v} copyValue={getFullKey(v)} />,
     },
     {
       title: 'Value', dataIndex: 'value', key: 'value', ellipsis: true,
-      render: (v: string) => <span style={{ fontFamily: 'monospace' }}>{v.length > 60 ? v.slice(0, 60) + '...' : v}</span>,
+      render: (v: string) => (
+        <span className="resource-value-preview">
+          <CopyableCode value={v.length > 60 ? v.slice(0, 60) + '...' : v} copyValue={v} />
+        </span>
+      ),
     },
     {
       title: '操作', key: 'actions', width: 240,
@@ -184,7 +192,12 @@ export default function ConfigPage() {
             <Button size="small" icon={<HistoryOutlined />} onClick={() => openHistory(record.key)} />
           </Tooltip>
           <Button size="small" onClick={() => openEdit(record)} disabled={!isAdmin}>编辑</Button>
-          <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.key)} disabled={!isAdmin}>
+          <Popconfirm
+            title="确认删除此配置？"
+            description={`将从环境「${envName}」中永久删除 ${record.key}`}
+            onConfirm={() => handleDelete(record.key)}
+            disabled={!isAdmin}
+          >
             <Button size="small" danger disabled={!isAdmin}>删除</Button>
           </Popconfirm>
         </Space>
@@ -209,7 +222,11 @@ export default function ConfigPage() {
             <Button size="small" icon={<EyeOutlined />} onClick={() => setPreviewValue(record.value)} />
           </Tooltip>
           {isAdmin && (
-            <Popconfirm title="确认回滚到此版本？" onConfirm={() => handleRollback(record.id)}>
+            <Popconfirm
+              title="确认回滚到此版本？"
+              description={`配置 ${historyKey} 将回滚至 ${formatTime(record.created_at)} 的版本`}
+              onConfirm={() => handleRollback(record.id)}
+            >
               <Button size="small" icon={<RollbackOutlined />}>回滚</Button>
             </Popconfirm>
           )}
@@ -220,36 +237,57 @@ export default function ConfigPage() {
 
   return (
     <>
-      <Space style={{ marginBottom: 16 }} wrap>
+      <PageHeader
+        eyebrow="Configuration Center"
+        title="配置管理"
+        description={`浏览和维护「${envName}」环境的配置与版本历史`}
+        extra={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建配置</Button> : undefined}
+      />
+
+      <PageToolbar
+        trailing={(
+          <>
+            <Select
+              className="toolbar-export-select"
+              placeholder="导出"
+              value={undefined}
+              onChange={(value: 'json' | 'yaml') => handleExport(value)}
+              options={[
+                { label: '导出 JSON', value: 'json' },
+                { label: '导出 YAML', value: 'yaml' },
+              ]}
+              suffixIcon={<ExportOutlined />}
+            />
+            {isAdmin && (
+              <Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={handleImport}>
+                <Button icon={<ImportOutlined />}>导入</Button>
+              </Upload>
+            )}
+          </>
+        )}
+      >
         <Input
+          className="toolbar-search toolbar-search--compact"
           prefix={<SearchOutlined />}
           placeholder="Key 前缀过滤"
           value={searchPrefix}
-          onChange={(e) => setSearchPrefix(e.target.value)}
+          onChange={(event) => setSearchPrefix(event.target.value)}
           onPressEnter={() => fetchConfigs()}
-          style={{ width: 260 }}
         />
         <Button icon={<ReloadOutlined />} onClick={() => fetchConfigs()}>刷新</Button>
-        {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建</Button>}
-        <Select
-          placeholder="导出"
-          style={{ width: 120 }}
-          value={undefined}
-          onChange={(v: 'json' | 'yaml') => handleExport(v)}
-          options={[
-            { label: '导出 JSON', value: 'json' },
-            { label: '导出 YAML', value: 'yaml' },
-          ]}
-          suffixIcon={<ExportOutlined />}
-        />
-        {isAdmin && (
-          <Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={handleImport}>
-            <Button icon={<ImportOutlined />}>导入</Button>
-          </Upload>
-        )}
-      </Space>
+      </PageToolbar>
 
-      <Table rowKey="key" columns={columns} dataSource={items} loading={loading} pagination={false} size="middle" />
+      <SectionCard className="resource-card">
+        <Table
+          className="data-table"
+          rowKey="key"
+          columns={columns}
+          dataSource={items}
+          loading={loading}
+          pagination={false}
+          size="middle"
+        />
+      </SectionCard>
 
       <Modal
         title={editing ? '编辑配置' : '新建配置'}
@@ -286,7 +324,7 @@ export default function ConfigPage() {
           pagination={false}
           size="small"
         />
-        <div style={{ textAlign: 'right', marginTop: 16 }}>
+        <div className="drawer-pagination">
           <Pagination
             current={revPage}
             total={revTotal}
