@@ -1,0 +1,52 @@
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-alert {
+  margin-bottom: 20px;
+}
+
+.alarm-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.data-table .ant-table {
+  background: transparent;
+}
+
+.data-table .ant-table-thead > tr > th {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.data-table .ant-table-tbody > tr > td {
+  height: 44px;
+}
+
+.page-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.resource-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 20px;
+}
+
+.metric-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.toolbar-search {
+  width: 300px;
+}
+
+.service-groups .ant-collapse-item {
+  border-color: var(--border);
+}
