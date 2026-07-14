@@ -72,6 +72,7 @@ describe('ClusterPage member summary', () => {
     expect(summary?.textContent).toContain('cluster-01')
     expect(summary?.textContent).toContain('Leader')
     expect(summary?.textContent).toContain('etcd-2')
+    expect(summary?.querySelector('[title="etcd-2"]')).toBeTruthy()
     expect(container.querySelector('.cluster-descriptions')).toBeNull()
   })
 })

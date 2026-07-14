@@ -144,7 +144,7 @@ export default function ClusterPage() {
               </div>
               <div className="cluster-summary__item cluster-summary__item--leader">
                 <span>Leader</span>
-                <strong>{status?.leader}</strong>
+                <strong title={status?.leader}>{status?.leader}</strong>
               </div>
             </div>
           )}
