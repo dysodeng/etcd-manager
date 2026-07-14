@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"github.com/spf13/viper"
 )
 
@@ -13,7 +15,12 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port int `mapstructure:"port"`
+	Port              int           `mapstructure:"port"`
+	ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"`
+	ReadTimeout       time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout      time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout       time.Duration `mapstructure:"idle_timeout"`
+	ShutdownTimeout   time.Duration `mapstructure:"shutdown_timeout"`
 }
 
 type EtcdConfig struct {
@@ -46,18 +53,30 @@ type LogConfig struct {
 }
 
 func Load(path string) (*Config, error) {
-	viper.SetConfigFile(path)
-	if err := viper.ReadInConfig(); err != nil {
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetDefault("server.read_header_timeout", "5s")
+	v.SetDefault("server.read_timeout", "15s")
+	v.SetDefault("server.write_timeout", "30s")
+	v.SetDefault("server.idle_timeout", "60s")
+	v.SetDefault("server.shutdown_timeout", "15s")
+	if err := v.ReadInConfig(); err != nil {
 		return nil, err
 	}
-	_ = viper.BindEnv("jwt.secret", "JWT_SECRET")
-	_ = viper.BindEnv("etcd.endpoints", "ETCD_ENDPOINTS")
-	_ = viper.BindEnv("etcd.username", "ETCD_USERNAME")
-	_ = viper.BindEnv("etcd.password", "ETCD_PASSWORD")
-	_ = viper.BindEnv("database.driver", "DB_DRIVER")
-	_ = viper.BindEnv("database.dsn", "DB_DSN")
+	_ = v.BindEnv("jwt.secret", "JWT_SECRET")
+	_ = v.BindEnv("etcd.endpoints", "ETCD_ENDPOINTS")
+	_ = v.BindEnv("etcd.username", "ETCD_USERNAME")
+	_ = v.BindEnv("etcd.password", "ETCD_PASSWORD")
+	_ = v.BindEnv("database.driver", "DB_DRIVER")
+	_ = v.BindEnv("database.dsn", "DB_DSN")
+	_ = v.BindEnv("server.read_header_timeout", "SERVER_READ_HEADER_TIMEOUT")
+	_ = v.BindEnv("server.read_timeout", "SERVER_READ_TIMEOUT")
+	_ = v.BindEnv("server.write_timeout", "SERVER_WRITE_TIMEOUT")
+	_ = v.BindEnv("server.idle_timeout", "SERVER_IDLE_TIMEOUT")
+	_ = v.BindEnv("server.shutdown_timeout", "SERVER_SHUTDOWN_TIMEOUT")
+	_ = v.BindEnv("log.level", "LOG_LEVEL")
 	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
