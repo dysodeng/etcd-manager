@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Table, Input, DatePicker, Button, Pagination, message } from 'antd'
+import { Table, Input, DatePicker, Button, Pagination, Result, message } from 'antd'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { AuditLog, AuditLogFilter } from '@/types'
 import { auditApi } from '@/api/audit'
+import { useAuthStore, canRead } from '@/stores/auth'
 import { CopyableCode, PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
 import { formatTime } from '@/utils'
 
@@ -15,6 +16,8 @@ export default function AuditPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<AuditLogFilter>({})
+  const { user: currentUser } = useAuthStore()
+  const canAccessAudit = canRead(currentUser, 'audit_logs')
 
   const fetchData = async (p?: number, f?: AuditLogFilter) => {
     setLoading(true)
@@ -29,7 +32,10 @@ export default function AuditPage() {
     }
   }
 
-  useEffect(() => { fetchData(1) }, [])
+  useEffect(() => {
+    if (!canAccessAudit) return
+    fetchData(1)
+  }, [canAccessAudit])
 
   const handleSearch = () => {
     setPage(1)
@@ -73,6 +79,10 @@ export default function AuditPage() {
     },
     { title: '时间', dataIndex: 'created_at', key: 'created_at', width: 170, render: formatTime },
   ]
+
+  if (!canAccessAudit) {
+    return <Result status="403" title="无权访问" subTitle="当前角色没有审计日志权限" />
+  }
 
   return (
     <>
