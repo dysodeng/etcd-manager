@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/dysodeng/etcd-manager/internal/etcd"
 	"go.etcd.io/etcd/api/v3/etcdserverpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type ClusterService struct {
@@ -78,9 +80,10 @@ type ClusterMetrics struct {
 }
 
 func memberClientEndpoints(members []*etcdserverpb.Member, fallback []string) []string {
-	endpoints := make([]string, 0, len(members))
-	seen := make(map[string]struct{}, len(members))
-	for _, member := range members {
+	memberURLs := make([][]string, len(members))
+	owners := make(map[string]int, len(members))
+	for i, member := range members {
+		seen := make(map[string]struct{}, len(member.ClientURLs))
 		for _, endpoint := range member.ClientURLs {
 			if endpoint == "" {
 				continue
@@ -89,14 +92,59 @@ func memberClientEndpoints(members []*etcdserverpb.Member, fallback []string) []
 				continue
 			}
 			seen[endpoint] = struct{}{}
-			endpoints = append(endpoints, endpoint)
-			break
+			memberURLs[i] = append(memberURLs[i], endpoint)
+			owners[endpoint]++
+		}
+	}
+
+	endpoints := make([]string, 0, len(members))
+	selected := make(map[string]struct{}, len(members))
+	for _, urls := range memberURLs {
+		chosen := ""
+		for _, endpoint := range urls {
+			if owners[endpoint] == 1 {
+				chosen = endpoint
+				break
+			}
+		}
+		if chosen == "" {
+			for _, endpoint := range urls {
+				if _, exists := selected[endpoint]; !exists {
+					chosen = endpoint
+					break
+				}
+			}
+		}
+		if chosen != "" {
+			selected[chosen] = struct{}{}
+			endpoints = append(endpoints, chosen)
 		}
 	}
 	if len(endpoints) > 0 {
 		return endpoints
 	}
 	return fallback
+}
+
+type endpointStatusResult struct {
+	endpoint string
+	status   *clientv3.StatusResponse
+	err      error
+}
+
+func (s *ClusterService) probeEndpoints(ctx context.Context, endpoints []string) []endpointStatusResult {
+	results := make([]endpointStatusResult, len(endpoints))
+	var wg sync.WaitGroup
+	wg.Add(len(endpoints))
+	for i, endpoint := range endpoints {
+		go func() {
+			defer wg.Done()
+			status, err := s.etcdClient.Status(ctx, endpoint)
+			results[i] = endpointStatusResult{endpoint: endpoint, status: status, err: err}
+		}()
+	}
+	wg.Wait()
+	return results
 }
 
 func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
@@ -119,13 +167,13 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		MemberCount: len(memberResp.Members),
 		Health:      make(map[string]bool),
 	}
-	for _, ep := range endpoints {
-		sr, err := s.etcdClient.Status(ctx, ep)
-		if err != nil {
-			metrics.Health[ep] = false
+	for _, result := range s.probeEndpoints(ctx, endpoints) {
+		if result.err != nil {
+			metrics.Health[result.endpoint] = false
 			continue
 		}
-		metrics.Health[ep] = true
+		sr := result.status
+		metrics.Health[result.endpoint] = true
 		if metrics.Version == "" {
 			metrics.Version = sr.Version
 			metrics.DBSize = sr.DbSize
@@ -175,15 +223,23 @@ func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, er
 
 	var results []MemberStatus
 	endpoints := memberClientEndpoints(memberResp.Members, s.etcdClient.Endpoints())
-	for _, ep := range endpoints {
-		sr, err := s.etcdClient.Status(ctx, ep)
-		if err != nil {
+	seenMemberIDs := make(map[uint64]struct{}, len(endpoints))
+	for _, result := range s.probeEndpoints(ctx, endpoints) {
+		if result.err != nil {
 			continue
 		}
-		meta := idToMember[sr.Header.MemberId]
+		sr := result.status
+		if _, exists := seenMemberIDs[sr.Header.MemberId]; exists {
+			continue
+		}
+		meta, exists := idToMember[sr.Header.MemberId]
+		if !exists {
+			continue
+		}
+		seenMemberIDs[sr.Header.MemberId] = struct{}{}
 		results = append(results, MemberStatus{
 			Name:             meta.Name,
-			Endpoint:         ep,
+			Endpoint:         result.endpoint,
 			DBSize:           sr.DbSize,
 			DBSizeInUse:      sr.DbSizeInUse,
 			Version:          sr.Version,

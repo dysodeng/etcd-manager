@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/dysodeng/etcd-manager/internal/config"
 	etcdclient "github.com/dysodeng/etcd-manager/internal/etcd"
@@ -19,6 +20,9 @@ type clusterFixtureServer struct {
 	memberID uint64
 	leaderID uint64
 	members  []*etcdserverpb.Member
+
+	statusStarted chan<- uint64
+	statusRelease <-chan struct{}
 }
 
 func (s *clusterFixtureServer) MemberList(context.Context, *etcdserverpb.MemberListRequest) (*etcdserverpb.MemberListResponse, error) {
@@ -29,6 +33,12 @@ func (s *clusterFixtureServer) MemberList(context.Context, *etcdserverpb.MemberL
 }
 
 func (s *clusterFixtureServer) Status(context.Context, *etcdserverpb.StatusRequest) (*etcdserverpb.StatusResponse, error) {
+	if s.statusStarted != nil {
+		s.statusStarted <- s.memberID
+	}
+	if s.statusRelease != nil {
+		<-s.statusRelease
+	}
 	return &etcdserverpb.StatusResponse{
 		Header:           &etcdserverpb.ResponseHeader{ClusterId: 99, MemberId: s.memberID},
 		Version:          "3.5.5",
@@ -41,7 +51,7 @@ func (s *clusterFixtureServer) Status(context.Context, *etcdserverpb.StatusReque
 	}, nil
 }
 
-func newClusterServiceFixture(t *testing.T) (*ClusterService, []string) {
+func newClusterServiceFixture(t *testing.T) (*ClusterService, []string, []*etcdserverpb.Member, []*clusterFixtureServer) {
 	t.Helper()
 
 	listeners := make([]net.Listener, 3)
@@ -66,6 +76,7 @@ func newClusterServiceFixture(t *testing.T) (*ClusterService, []string) {
 		}
 	}
 
+	servers := make([]*clusterFixtureServer, len(listeners))
 	for i, listener := range listeners {
 		server := grpc.NewServer()
 		fixture := &clusterFixtureServer{
@@ -73,6 +84,7 @@ func newClusterServiceFixture(t *testing.T) (*ClusterService, []string) {
 			leaderID: 1,
 			members:  members,
 		}
+		servers[i] = fixture
 		etcdserverpb.RegisterClusterServer(server, fixture)
 		etcdserverpb.RegisterMaintenanceServer(server, fixture)
 		go func() { _ = server.Serve(listener) }()
@@ -85,11 +97,11 @@ func newClusterServiceFixture(t *testing.T) (*ClusterService, []string) {
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
-	return NewClusterService(client), endpoints
+	return NewClusterService(client), endpoints, members, servers
 }
 
 func TestClusterServiceMemberStatusesDiscoversEveryMember(t *testing.T) {
-	service, endpoints := newClusterServiceFixture(t)
+	service, endpoints, _, _ := newClusterServiceFixture(t)
 
 	statuses, err := service.MemberStatuses(context.Background())
 	if err != nil {
@@ -109,7 +121,7 @@ func TestClusterServiceMemberStatusesDiscoversEveryMember(t *testing.T) {
 }
 
 func TestClusterServiceMetricsChecksEveryMember(t *testing.T) {
-	service, endpoints := newClusterServiceFixture(t)
+	service, endpoints, _, _ := newClusterServiceFixture(t)
 
 	metrics, err := service.Metrics(context.Background())
 	if err != nil {
@@ -122,5 +134,73 @@ func TestClusterServiceMetricsChecksEveryMember(t *testing.T) {
 		if !metrics.Health[endpoint] {
 			t.Errorf("endpoint %q was not reported healthy", endpoint)
 		}
+	}
+}
+
+func TestClusterServiceMemberStatusesPrefersUniqueMemberURLs(t *testing.T) {
+	service, endpoints, members, _ := newClusterServiceFixture(t)
+	sharedEndpoint := endpoints[1]
+	members[0].ClientURLs = []string{sharedEndpoint, endpoints[0]}
+	members[1].ClientURLs = []string{sharedEndpoint}
+
+	statuses, err := service.MemberStatuses(context.Background())
+	if err != nil {
+		t.Fatalf("member statuses: %v", err)
+	}
+	if len(statuses) != len(members) {
+		t.Fatalf("member status count = %d, want %d", len(statuses), len(members))
+	}
+	seen := make(map[string]bool, len(statuses))
+	for _, status := range statuses {
+		if seen[status.Name] {
+			t.Fatalf("member %q appeared more than once", status.Name)
+		}
+		seen[status.Name] = true
+	}
+	for _, member := range members {
+		if !seen[member.Name] {
+			t.Errorf("member %q is missing", member.Name)
+		}
+	}
+}
+
+func TestClusterServiceMemberStatusesProbesMembersConcurrently(t *testing.T) {
+	service, _, _, servers := newClusterServiceFixture(t)
+	started := make(chan uint64, len(servers))
+	release := make(chan struct{})
+	released := false
+	defer func() {
+		if !released {
+			close(release)
+		}
+	}()
+	for _, server := range servers {
+		server.statusStarted = started
+		server.statusRelease = release
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		statuses, err := service.MemberStatuses(context.Background())
+		if err == nil && len(statuses) != len(servers) {
+			err = fmt.Errorf("member status count = %d, want %d", len(statuses), len(servers))
+		}
+		result <- err
+	}()
+
+	seen := make(map[uint64]bool, len(servers))
+	deadline := time.After(time.Second)
+	for len(seen) < len(servers) {
+		select {
+		case memberID := <-started:
+			seen[memberID] = true
+		case <-deadline:
+			t.Fatalf("only %d/%d member probes started before the first completed", len(seen), len(servers))
+		}
+	}
+	close(release)
+	released = true
+	if err := <-result; err != nil {
+		t.Fatal(err)
 	}
 }
