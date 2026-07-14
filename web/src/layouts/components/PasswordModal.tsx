@@ -1,4 +1,5 @@
 import { Form, Input, Modal } from 'antd'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 export interface PasswordValues {
   old_password: string
@@ -14,14 +15,15 @@ interface PasswordModalProps {
 
 export default function PasswordModal({ open, loading, onCancel, onSubmit }: PasswordModalProps) {
   const [form] = Form.useForm()
+  const [submitting, runSubmitLocked] = useSubmissionLock()
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => runSubmitLocked(async () => {
     const values = await form.validateFields()
     await onSubmit({
       old_password: values.old_password as string,
       new_password: values.new_password as string,
     })
-  }
+  })
 
   return (
     <Modal
@@ -30,7 +32,7 @@ export default function PasswordModal({ open, loading, onCancel, onSubmit }: Pas
       onOk={handleSubmit}
       onCancel={onCancel}
       afterClose={() => form.resetFields()}
-      confirmLoading={loading}
+      confirmLoading={loading || submitting}
       destroyOnHidden
       className="app-modal"
       okText="确认修改"

@@ -7,13 +7,14 @@ import { roleApi } from '@/api/role'
 import { useAuthStore, canRead, canWrite, isSuper } from '@/stores/auth'
 import { EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
 import { formatTime } from '@/utils'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm()
@@ -25,9 +26,9 @@ export default function UsersPage() {
   // 转移超管
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferForm] = Form.useForm()
-  const [creating, setCreating] = useState(false)
+  const [creating, runCreateLocked] = useSubmissionLock()
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [transferring, setTransferring] = useState(false)
+  const [transferring, runTransferLocked] = useSubmissionLock()
   const transferTargetId = Form.useWatch('target_user_id', transferForm) as string | undefined
 
   const fetchRoles = async () => {
@@ -59,9 +60,8 @@ export default function UsersPage() {
     if (isSuperAdmin) fetchRoles()
   }, [canAccessUsers, isSuperAdmin])
 
-  const handleCreate = async () => {
+  const handleCreate = () => runCreateLocked(async () => {
     const values = await form.validateFields()
-    setCreating(true)
     try {
       await userApi.create({
         username: values.username as string,
@@ -74,10 +74,8 @@ export default function UsersPage() {
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '创建失败')
-    } finally {
-      setCreating(false)
     }
-  }
+  })
 
   const handleUpdateRole = async (id: string, roleId: string) => {
     try {
@@ -102,19 +100,16 @@ export default function UsersPage() {
     }
   }
 
-  const handleTransferSuper = async () => {
+  const handleTransferSuper = () => runTransferLocked(async () => {
     const values = await transferForm.validateFields()
-    setTransferring(true)
     try {
       await userApi.transferSuper(values.target_user_id as string, values.role_id as string)
       message.success('超管转移成功，请重新登录')
       setTransferOpen(false)
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '转移失败')
-    } finally {
-      setTransferring(false)
     }
-  }
+  })
 
   const columns = [
     { title: '用户名', dataIndex: 'username', key: 'username' },

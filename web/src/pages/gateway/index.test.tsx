@@ -2,6 +2,7 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import type { Environment, ServiceGroup, UserProfile } from '@/types'
 import GatewayPage from './index'
 
@@ -97,11 +98,10 @@ describe('GatewayPage async states', () => {
     await waitFor(() => expect(boundary.list).toHaveBeenCalledTimes(2))
   })
 
-  it('renders the shared loading state during the initial request', () => {
-    boundary.list.mockReturnValue(new Promise(() => {}))
+  it('renders the shared loading state on the first render before effects run', () => {
+    const html = renderToStaticMarkup(<GatewayPage />)
 
-    const { container } = render(<GatewayPage />)
-
-    expect(container.querySelector('.async-state')).toBeTruthy()
+    expect(html).toContain('ant-skeleton')
+    expect(html).not.toContain('当前环境暂无注册服务')
   })
 })

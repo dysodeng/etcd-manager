@@ -22,7 +22,7 @@ export default function GatewayPage() {
   const isAdmin = canWrite(user, 'gateway')
 
   const [groups, setGroups] = useState<ServiceGroup[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [previewJson, setPreviewJson] = useState<string | null>(null)
   const [updatingKey, setUpdatingKey] = useState<string | null>(null)
 
@@ -41,6 +41,7 @@ export default function GatewayPage() {
 
   useEffect(() => {
     if (currentEnv?.name) fetchData()
+    else setLoading(false)
   }, [currentEnv])
 
   const handleUpdateStatus = async (instance: ServiceInstance, status: 'up' | 'down') => {

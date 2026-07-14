@@ -4,6 +4,7 @@ import { Button, Form, Input, InputNumber, message, Modal, Popconfirm, Space, Ta
 import type { ColumnsType } from 'antd/es/table'
 import type { Environment, EnvironmentCreateRequest } from '@/types'
 import { copyText } from '@/utils'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 interface EnvironmentManagerProps {
   open: boolean
@@ -42,7 +43,7 @@ export default function EnvironmentManager({
   const [form] = Form.useForm<EnvironmentCreateRequest>()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Environment | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [saving, runSaveLocked] = useSubmissionLock()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const openCreate = () => {
@@ -65,16 +66,15 @@ export default function EnvironmentManager({
     setEditorOpen(true)
   }
 
-  const handleSave = async () => {
+  const handleSave = () => runSaveLocked(async () => {
     const values = await form.validateFields()
-    setSaving(true)
     try {
       const saved = await onSave(values, editing)
       if (saved !== false) setEditorOpen(false)
-    } finally {
-      setSaving(false)
+    } catch (caught: unknown) {
+      message.error(caught instanceof Error ? caught.message : '操作失败')
     }
-  }
+  })
 
   const handleDelete = async (environment: Environment) => {
     setDeletingId(environment.id)

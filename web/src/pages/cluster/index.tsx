@@ -16,7 +16,7 @@ export default function ClusterPage() {
   const [metrics, setMetrics] = useState<ClusterMetrics | null>(null)
   const [memberStatuses, setMemberStatuses] = useState<MemberStatus[]>([])
   const [alarms, setAlarms] = useState<AlarmInfo[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasData = useRef(false)
 

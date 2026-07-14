@@ -22,7 +22,7 @@ export default function GrpcPage() {
   const isAdmin = canWrite(user, 'grpc')
 
   const [groups, setGroups] = useState<GrpcServiceGroup[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [previewJson, setPreviewJson] = useState<string | null>(null)
   const [updatingKey, setUpdatingKey] = useState<string | null>(null)
 
@@ -41,6 +41,7 @@ export default function GrpcPage() {
 
   useEffect(() => {
     if (currentEnv?.name) fetchData()
+    else setLoading(false)
   }, [currentEnv])
 
   const handleUpdateStatus = async (instance: GrpcInstance, status: 'up' | 'down') => {

@@ -45,4 +45,27 @@ describe('SyncRestorePanel confirmation', () => {
     rerender(<SyncRestorePanel {...props} selectedIds={['env-1']} />)
     expect(screen.getByText('即将恢复：production')).toBeTruthy()
   })
+
+  it('issues one restore when confirmation is clicked twice rapidly', async () => {
+    const onRestore = vi.fn(() => new Promise<void>(() => {}))
+    render(
+      <SyncRestorePanel
+        statuses={[{ environment_id: 'env-1', environment_name: 'production', db_key_count: 3, etcd_key_count: 0, need_restore: true }]}
+        selectedIds={['env-1']}
+        open
+        restoring={false}
+        onOpen={vi.fn()}
+        onClose={vi.fn()}
+        onDismiss={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onRestore={onRestore}
+      />,
+    )
+
+    const restore = screen.getByRole('button', { name: '恢复选中环境' })
+    restore.click()
+    restore.click()
+
+    await vi.waitFor(() => expect(onRestore).toHaveBeenCalledTimes(1))
+  })
 })

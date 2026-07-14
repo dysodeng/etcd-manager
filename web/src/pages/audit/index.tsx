@@ -14,7 +14,7 @@ export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<AuditLogFilter>({})
   const { user: currentUser } = useAuthStore()

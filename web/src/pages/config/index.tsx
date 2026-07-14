@@ -14,6 +14,7 @@ import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
 import { CopyableCode, EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import { formatTime, downloadBlob } from '@/utils'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 export default function ConfigPage() {
   const currentEnv = useEnvironmentStore((s) => s.current)
@@ -21,7 +22,7 @@ export default function ConfigPage() {
   const isAdmin = canWrite(user, 'config')
 
   const [items, setItems] = useState<ConfigItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchPrefix, setSearchPrefix] = useState('')
 
@@ -37,7 +38,7 @@ export default function ConfigPage() {
   const [revPage, setRevPage] = useState(1)
   const [revLoading, setRevLoading] = useState(false)
   const [previewValue, setPreviewValue] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [saving, runSaveLocked] = useSubmissionLock()
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const [rollingBackId, setRollingBackId] = useState<string | null>(null)
 
@@ -112,9 +113,8 @@ export default function ConfigPage() {
     setModalOpen(true)
   }
 
-  const handleSave = async () => {
+  const handleSave = () => runSaveLocked(async () => {
     const values = await form.validateFields()
-    setSaving(true)
     try {
       if (editing) {
         await configApi.update({ env: envName, key: values.key as string, value: editorValue, comment: values.comment as string })
@@ -127,10 +127,8 @@ export default function ConfigPage() {
       fetchConfigs()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
-    } finally {
-      setSaving(false)
     }
-  }
+  })
 
   const handleDelete = async (key: string) => {
     setDeletingKey(key)

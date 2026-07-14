@@ -8,10 +8,11 @@ import MonacoEditor from '@/components/MonacoEditor'
 import { EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import KVTreeView from './KVTreeView'
 import { buildKVTree } from './buildKVTree'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 export default function KVPage() {
   const [items, setItems] = useState<KVItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [prefix, setPrefix] = useState('/')
   const [modalOpen, setModalOpen] = useState(false)
@@ -21,7 +22,7 @@ export default function KVPage() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = canWrite(user, 'kv')
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list')
-  const [saving, setSaving] = useState(false)
+  const [saving, runSaveLocked] = useSubmissionLock()
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const hasData = items.length > 0
 
@@ -56,9 +57,8 @@ export default function KVPage() {
     setModalOpen(true)
   }
 
-  const handleSave = async () => {
+  const handleSave = () => runSaveLocked(async () => {
     const values = await form.validateFields()
-    setSaving(true)
     try {
       if (editing) {
         await kvApi.update(values.key as string, editorValue)
@@ -71,10 +71,8 @@ export default function KVPage() {
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
-    } finally {
-      setSaving(false)
     }
-  }
+  })
 
   const handleDelete = async (key: string) => {
     setDeletingKey(key)

@@ -1,6 +1,7 @@
 import { WarningOutlined } from '@ant-design/icons'
 import { Alert, Button, Checkbox, Modal } from 'antd'
 import type { EnvSyncStatus } from '@/api/sync'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 interface SyncRestorePanelProps {
   statuses: EnvSyncStatus[]
@@ -25,6 +26,7 @@ export default function SyncRestorePanel({
   onSelectionChange,
   onRestore,
 }: SyncRestorePanelProps) {
+  const [submitting, runRestoreLocked] = useSubmissionLock()
   const selectedNames = statuses
     .filter((status) => selectedIds.includes(status.environment_id))
     .map((status) => status.environment_name)
@@ -46,9 +48,9 @@ export default function SyncRestorePanel({
       <Modal
         title="配置恢复"
         open={open}
-        onOk={onRestore}
+        onOk={() => runRestoreLocked(onRestore)}
         onCancel={onClose}
-        confirmLoading={restoring}
+        confirmLoading={restoring || submitting}
         okText="恢复选中环境"
         cancelText="取消"
         destroyOnHidden

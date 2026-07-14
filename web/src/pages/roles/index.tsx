@@ -11,6 +11,7 @@ import { useEnvironmentStore } from '@/stores/environment'
 import { EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import { formatTime } from '@/utils'
 import { updatePermissionState, type PermissionState } from './permissions'
+import { useSubmissionLock } from '@/hooks/useSubmissionLock'
 
 const ALL_MODULES = [
   { key: 'kv', label: 'KV 管理' },
@@ -27,7 +28,7 @@ export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
@@ -37,7 +38,7 @@ export default function RolesPage() {
   const currentUser = useAuthStore(state => state.user)
   const isSuperAdmin = isSuper(currentUser)
   const { environments, fetch: fetchEnvs } = useEnvironmentStore()
-  const [saving, setSaving] = useState(false)
+  const [saving, runSaveLocked] = useSubmissionLock()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchData = async (p?: number) => {
@@ -95,9 +96,8 @@ export default function RolesPage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = () => runSaveLocked(async () => {
     const values = await form.validateFields()
-    setSaving(true)
     const perms: RolePermission[] = ALL_MODULES.map(m => ({
       module: m.key,
       can_read: permissions[m.key]?.can_read ?? false,
@@ -121,10 +121,8 @@ export default function RolesPage() {
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
-    } finally {
-      setSaving(false)
     }
-  }
+  })
 
   const handleDelete = async (id: string) => {
     setDeletingId(id)
