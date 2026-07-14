@@ -1,0 +1,132 @@
+.login-page {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(520px, 1.05fr) minmax(480px, .95fr);
+  background: var(--app-bg);
+}
+
+.login-page__brand {
+  position: relative;
+  overflow: hidden;
+  padding: 48px;
+  color: #fff;
+  background: #101a2f;
+}
+
+.login-page__brand::before,
+.login-page__brand::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.login-page__brand::before {
+  width: 520px;
+  height: 520px;
+  top: -260px;
+  right: -180px;
+  background: radial-gradient(circle, #316ff6 0, rgba(49, 111, 246, .18) 48%, transparent 70%);
+}
+
+.login-page__brand::after {
+  width: 420px;
+  height: 420px;
+  left: -220px;
+  bottom: -220px;
+  background: radial-gradient(circle, #1d9b7d 0, rgba(29, 155, 125, .14) 50%, transparent 70%);
+}
+
+.login-brand,
+.login-hero {
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-brand > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #4f7cff, #2dc4ae);
+  font-weight: 800;
+}
+
+.login-hero {
+  position: absolute;
+  left: 48px;
+  right: 48px;
+  bottom: 14%;
+}
+
+.login-hero h1 {
+  margin: 0 0 18px;
+  font-size: 44px;
+  line-height: 1.16;
+  letter-spacing: -.04em;
+}
+
+.login-hero p {
+  max-width: 520px;
+  color: #a8b8cd;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.login-features {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.login-features span {
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+  color: #c9d5e5;
+  font-size: 12px;
+}
+
+.login-page__form-panel {
+  display: grid;
+  place-items: center;
+  padding: 64px;
+  background: var(--surface);
+}
+
+.login-form {
+  width: 400px;
+}
+
+.login-form__eyebrow {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.login-form h2 {
+  margin: 8px 0;
+  font-size: 30px;
+}
+
+.login-form > p {
+  margin: 0 0 30px;
+  color: var(--text-secondary);
+}
+
+.login-form__security {
+  display: block;
+  margin-top: 18px;
+  color: var(--text-muted);
+  text-align: center;
+}
