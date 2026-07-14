@@ -8,8 +8,51 @@
   margin-bottom: 20px;
 }
 
-.cluster-descriptions {
-  margin-bottom: 16px;
+.cluster-members-card .section-card__header {
+  gap: 20px;
+}
+
+.cluster-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cluster-summary__item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.cluster-summary__item span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cluster-summary__item strong {
+  max-width: 230px;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cluster-summary__item--leader {
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--border));
+  background: var(--primary-soft);
+}
+
+.cluster-summary__item--leader strong {
+  color: var(--primary);
 }
 
 .alarm-list {
@@ -47,6 +90,28 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.user-role-select {
+  width: 240px;
+  max-width: 100%;
+}
+
+.user-role-select .ant-select-selection-item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.user-role-select .status-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role-select .status-badge i {
+  flex: 0 0 auto;
 }
 
 .resource-split {

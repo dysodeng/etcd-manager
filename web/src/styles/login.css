@@ -73,11 +73,14 @@
   letter-spacing: -.04em;
 }
 
-.login-hero p {
-  max-width: 520px;
+.login-hero__description {
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin: 0;
   color: #a8b8cd;
-  font-size: 16px;
+  font-size: clamp(14px, .85vw, 16px);
   line-height: 1.8;
+  white-space: nowrap;
 }
 
 .login-features {
@@ -122,6 +125,34 @@
 .login-form > p {
   margin: 0 0 30px;
   color: var(--text-secondary);
+}
+
+.login-form__field {
+  margin-bottom: 20px;
+}
+
+.login-form__field .ant-input-affix-wrapper {
+  min-height: 50px;
+  border-color: var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.login-form__field .ant-input-affix-wrapper:hover,
+.login-form__field .ant-input-affix-wrapper-focused {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.login-form__field .ant-input-prefix {
+  margin-right: 10px;
+  color: var(--text-secondary);
+}
+
+.login-form__field .ant-input-affix-wrapper-focused .ant-input-prefix {
+  color: var(--primary);
 }
 
 .login-form__security {

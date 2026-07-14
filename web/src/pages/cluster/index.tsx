@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Descriptions, Table, Button, Space, message, Alert,
+  Table, Button, Space, message, Alert,
 } from 'antd'
 import {
   ReloadOutlined,
@@ -132,11 +132,23 @@ export default function ClusterPage() {
       )}
 
       <div className="page-stack">
-        <SectionCard title="集群成员" description={`共 ${status?.members.length ?? 0} 个成员`}>
-          <Descriptions className="cluster-descriptions" column={2} size="small">
-            <Descriptions.Item label="集群 ID">{status?.cluster_id}</Descriptions.Item>
-            <Descriptions.Item label="Leader">{status?.leader}</Descriptions.Item>
-          </Descriptions>
+        <SectionCard
+          className="cluster-members-card"
+          title="集群成员"
+          description={`共 ${status?.members.length ?? 0} 个成员`}
+          extra={(
+            <div className="cluster-summary" aria-label="集群摘要">
+              <div className="cluster-summary__item">
+                <span>集群 ID</span>
+                <strong title={status?.cluster_id}>{status?.cluster_id}</strong>
+              </div>
+              <div className="cluster-summary__item cluster-summary__item--leader">
+                <span>Leader</span>
+                <strong>{status?.leader}</strong>
+              </div>
+            </div>
+          )}
+        >
           <Table
             className="data-table"
             rowKey="id"

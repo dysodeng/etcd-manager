@@ -114,7 +114,7 @@ export default function UsersPage() {
   const columns = [
     { title: '用户名', dataIndex: 'username', key: 'username' },
     {
-      title: '角色', key: 'role', width: 200,
+      title: '角色', key: 'role', width: 280,
       render: (_: unknown, record: User) => {
         if (record.is_super) {
           return <StatusBadge tone="danger">超级管理员</StatusBadge>
@@ -126,10 +126,12 @@ export default function UsersPage() {
         }
         return (
           <Select
+            className="user-role-select"
             value={record.role_id ?? undefined}
             onChange={(v: string) => handleUpdateRole(record.id, v)}
-            options={roles.map(r => ({ label: <StatusBadge tone="info">{r.name}</StatusBadge>, value: r.id }))}
-            style={{ width: 160 }}
+            options={roles.map(r => ({ label: r.name, value: r.id }))}
+            labelRender={({ label }) => <StatusBadge tone="info">{label}</StatusBadge>}
+            popupMatchSelectWidth={240}
             variant="borderless"
             placeholder="选择角色"
           />

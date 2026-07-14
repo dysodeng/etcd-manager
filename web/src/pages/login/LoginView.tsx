@@ -19,7 +19,7 @@ export default function LoginView({ loading, onFinish }: LoginViewProps) {
             掌控集群，<br />
             从容管理配置。
           </h1>
-          <p>统一管理 etcd 集群、服务发现与配置生命周期，让基础设施状态清晰可见。</p>
+          <p className="login-hero__description">统一管理 etcd 集群、服务发现与配置生命周期，让基础设施状态清晰可见。</p>
           <div className="login-features">
             <span>集群监控</span>
             <span>权限控制</span>
@@ -33,11 +33,11 @@ export default function LoginView({ loading, onFinish }: LoginViewProps) {
           <h2>登录管理中心</h2>
           <p>使用管理员分配的账号继续</p>
           <Form layout="vertical" size="large" onFinish={onFinish}>
-            <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-              <Input prefix={<UserOutlined />} placeholder="请输入用户名" autoComplete="username" />
+            <Form.Item name="username" className="login-form__field" rules={[{ required: true, message: '请输入用户名' }]}>
+              <Input aria-label="用户名" prefix={<UserOutlined />} placeholder="请输入用户名" autoComplete="username" />
             </Form.Item>
-            <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" autoComplete="current-password" />
+            <Form.Item name="password" className="login-form__field" rules={[{ required: true, message: '请输入密码' }]}>
+              <Input.Password aria-label="密码" prefix={<LockOutlined />} placeholder="请输入密码" autoComplete="current-password" />
             </Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} block>
               安全登录

@@ -96,4 +96,17 @@ describe('UsersPage mutation locking', () => {
 
     await waitFor(() => expect(boundary.transferSuper).toHaveBeenCalledTimes(1))
   })
+
+  it('keeps the selected role badge while rendering dropdown options as plain text', async () => {
+    const { container } = render(<UsersPage />)
+    await screen.findByText('operator')
+
+    const roleSelect = container.querySelector('.user-role-select')
+    expect(roleSelect?.querySelector('.ant-select-selection-item .status-badge')).toBeTruthy()
+
+    fireEvent.mouseDown(within(roleSelect as HTMLElement).getByRole('combobox'))
+    const option = await screen.findByText('Operator', { selector: '.ant-select-item-option-content' })
+
+    expect(option.querySelector('.status-badge')).toBeNull()
+  })
 })
