@@ -1,71 +1,32 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import {
-  Layout, Menu, Select, Dropdown, Space, Typography, theme,
-  Modal, Form, Input, Button, Table, Popconfirm, InputNumber, message, Tag, Alert, Checkbox,
-} from 'antd'
-import {
-  DatabaseOutlined,
-  SettingOutlined,
-  ClusterOutlined,
-  UserOutlined,
-  AuditOutlined,
-  LogoutOutlined,
-  KeyOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ApiOutlined,
-  CloudServerOutlined,
-  TeamOutlined,
-  WarningOutlined,
-  SunOutlined,
-  MoonOutlined,
-  DesktopOutlined,
-  CopyOutlined,
-} from '@ant-design/icons'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Layout, message } from 'antd'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
+import { useThemeStore } from '@/stores/theme'
 import { authApi } from '@/api/auth'
 import { environmentApi } from '@/api/environment'
 import { syncApi, type EnvSyncStatus } from '@/api/sync'
 import type { Environment, EnvironmentCreateRequest } from '@/types'
-import { menuItemConfigs, getVisibleMenuKeys } from '@/config/menu'
-import { useThemeStore, useIsDark, type ThemeMode } from '@/stores/theme'
-import { copyText } from '@/utils'
+import AppHeader from './components/AppHeader'
+import AppSidebar from './components/AppSidebar'
+import EnvironmentManager from './components/EnvironmentManager'
+import PasswordModal, { type PasswordValues } from './components/PasswordModal'
+import SyncRestorePanel from './components/SyncRestorePanel'
 
-const { Sider, Header, Content } = Layout
-const { Text } = Typography
-
-const iconMap: Record<string, React.ReactNode> = {
-  '/cluster': <ClusterOutlined />,
-  '/kv': <DatabaseOutlined />,
-  '/config': <SettingOutlined />,
-  '/gateway': <ApiOutlined />,
-  '/grpc': <CloudServerOutlined />,
-  '/users': <UserOutlined />,
-  '/roles': <TeamOutlined />,
-  '/audit': <AuditOutlined />,
-}
+const { Content } = Layout
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, fetchProfile, logout } = useAuthStore()
   const { environments, current, fetch: fetchEnvs, setCurrent } = useEnvironmentStore()
-  const { token: { colorBgContainer } } = theme.useToken()
-  const isDark = useIsDark()
+  const themeMode = useThemeStore((state) => state.mode)
+  const setThemeMode = useThemeStore((state) => state.setMode)
 
   const [pwdOpen, setPwdOpen] = useState(false)
-  const [pwdForm] = Form.useForm()
   const [pwdLoading, setPwdLoading] = useState(false)
-
   const [envOpen, setEnvOpen] = useState(false)
-  const [envModalOpen, setEnvModalOpen] = useState(false)
-  const [editingEnv, setEditingEnv] = useState<Environment | null>(null)
-  const [envForm] = Form.useForm()
-
-  // 同步检测
   const [syncStatuses, setSyncStatuses] = useState<EnvSyncStatus[]>([])
   const [syncModalOpen, setSyncModalOpen] = useState(false)
   const [selectedSyncEnvs, setSelectedSyncEnvs] = useState<string[]>([])
@@ -76,79 +37,53 @@ export default function MainLayout() {
     fetchEnvs()
   }, [fetchProfile, fetchEnvs])
 
-  // 超管登录后自动检测同步状态
   useEffect(() => {
     if (user?.is_super) {
-      syncApi.check().then((statuses) => {
-        const needRestore = statuses.filter(s => s.need_restore)
-        setSyncStatuses(needRestore)
-      }).catch(() => { /* ignore */ })
+      syncApi.check()
+        .then((statuses) => {
+          setSyncStatuses(statuses.filter((status) => status.need_restore))
+        })
+        .catch(() => { /* ignore */ })
     }
   }, [user?.is_super])
-
-  // 根据权限过滤菜单
-  const visibleKeys = getVisibleMenuKeys(user)
-  const visibleMenuItems = menuItemConfigs
-    .filter((item) => visibleKeys.includes(item.key))
-    .map(({ key, label }) => ({ key, icon: iconMap[key], label }))
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
-  const handleChangePassword = async () => {
-    const values = await pwdForm.validateFields()
+  const handleEnvironmentChange = (id: string) => {
+    const environment = environments.find((item) => item.id === id)
+    if (environment) setCurrent(environment)
+  }
+
+  const handleChangePassword = async (values: PasswordValues) => {
     setPwdLoading(true)
     try {
-      await authApi.changePassword({
-        old_password: values.old_password as string,
-        new_password: values.new_password as string,
-      })
+      await authApi.changePassword(values)
       message.success('密码修改成功')
       setPwdOpen(false)
-      pwdForm.resetFields()
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '修改失败')
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '修改失败')
     } finally {
       setPwdLoading(false)
     }
   }
 
-  const openEnvCreate = () => {
-    setEditingEnv(null)
-    envForm.resetFields()
-    setEnvModalOpen(true)
-  }
-
-  const openEnvEdit = (env: Environment) => {
-    setEditingEnv(env)
-    envForm.setFieldsValue({
-      name: env.name,
-      key_prefix: env.key_prefix,
-      config_prefix: env.config_prefix,
-      gateway_prefix: env.gateway_prefix,
-      grpc_prefix: env.grpc_prefix,
-      description: env.description,
-      sort_order: env.sort_order,
-    })
-    setEnvModalOpen(true)
-  }
-
-  const handleEnvSave = async () => {
-    const values = await envForm.validateFields()
+  const handleEnvSave = async (values: EnvironmentCreateRequest, editing: Environment | null) => {
     try {
-      if (editingEnv) {
-        await environmentApi.update(editingEnv.id, values as EnvironmentCreateRequest)
+      if (editing) {
+        await environmentApi.update(editing.id, values)
         message.success('更新成功')
       } else {
-        await environmentApi.create(values as EnvironmentCreateRequest)
+        await environmentApi.create(values)
         message.success('创建成功')
       }
-      setEnvModalOpen(false)
       fetchEnvs()
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '操作失败')
+      return true
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '操作失败')
+      return false
     }
   }
 
@@ -157,15 +92,15 @@ export default function MainLayout() {
       await environmentApi.delete(id)
       message.success('删除成功')
       fetchEnvs()
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '删除失败')
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '删除失败')
     }
   }
 
   const canManageEnv = canWrite(user, 'environments')
 
   const openSyncModal = () => {
-    setSelectedSyncEnvs(syncStatuses.map(s => s.environment_id))
+    setSelectedSyncEnvs(syncStatuses.map((status) => status.environment_id))
     setSyncModalOpen(true)
   }
 
@@ -177,8 +112,8 @@ export default function MainLayout() {
     setRestoring(true)
     try {
       const results = await syncApi.restore(selectedSyncEnvs)
-      const totalSuccess = results.reduce((sum, r) => sum + r.success, 0)
-      const totalFailed = results.reduce((sum, r) => sum + (r.failed?.length ?? 0), 0)
+      const totalSuccess = results.reduce((sum, result) => sum + result.success, 0)
+      const totalFailed = results.reduce((sum, result) => sum + (result.failed?.length ?? 0), 0)
       if (totalFailed > 0) {
         message.warning(`恢复完成：成功 ${totalSuccess} 个，失败 ${totalFailed} 个`)
       } else {
@@ -186,260 +121,56 @@ export default function MainLayout() {
       }
       setSyncModalOpen(false)
       setSyncStatuses([])
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '恢复失败')
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '恢复失败')
     } finally {
       setRestoring(false)
     }
   }
 
-  const fullPrefix = (record: Environment, suffix: string) => {
-    const base = record.key_prefix.endsWith('/') ? record.key_prefix : record.key_prefix + '/'
-    return base + suffix
-  }
-
-  const copyBtn = (text: string) => (
-    <CopyOutlined
-      style={{ marginLeft: 4, cursor: 'pointer', color: '#1890ff' }}
-      onClick={() => { copyText(text).then(() => message.success('已复制')) }}
-    />
-  )
-
-  const envColumns = [
-    { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
-    {
-      title: 'Key 前缀', dataIndex: 'key_prefix', key: 'key_prefix', width: 160,
-      render: (v: string) => <>{v}{copyBtn(v)}</>,
-    },
-    {
-      title: '配置前缀', dataIndex: 'config_prefix', key: 'config_prefix', width: 140,
-      render: (v: string, record: Environment) => <>{v}{v && copyBtn(fullPrefix(record, v))}</>,
-    },
-    {
-      title: '网关前缀', dataIndex: 'gateway_prefix', key: 'gateway_prefix', width: 150,
-      render: (v: string, record: Environment) => <>{v}{v && copyBtn(fullPrefix(record, v))}</>,
-    },
-    {
-      title: 'gRPC 前缀', dataIndex: 'grpc_prefix', key: 'grpc_prefix', width: 150,
-      render: (v: string, record: Environment) => <>{v}{v && copyBtn(fullPrefix(record, v))}</>,
-    },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-    { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 60 },
-    ...(canManageEnv ? [{
-      title: '操作', key: 'actions', width: 100,
-      render: (_: unknown, record: Environment) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEnvEdit(record)} />
-          <Popconfirm title="确认删除？" onConfirm={() => handleEnvDelete(record.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    }] : []),
-  ]
-
-  const userLabel = user?.is_super ? '超级管理员' : (user?.role?.name ?? '无角色')
-
   return (
-    <Layout style={{ height: '100vh' }}>
-      <Sider width={200} theme="dark">
-        <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Text strong style={{ color: '#fff', fontSize: 16 }}>ETCD管理中心</Text>
-        </div>
-        <Menu
-          mode="inline"
-          theme="dark"
-          selectedKeys={[location.pathname]}
-          items={visibleMenuItems}
-          onClick={({ key }) => navigate(key)}
+    <Layout className="app-shell">
+      <AppSidebar user={user} pathname={location.pathname} onNavigate={navigate} />
+      <Layout className="app-workspace">
+        <AppHeader
+          environments={environments}
+          current={current}
+          user={user}
+          canManageEnvironment={canManageEnv}
+          themeMode={themeMode}
+          onEnvironmentChange={handleEnvironmentChange}
+          onManageEnvironment={() => setEnvOpen(true)}
+          onThemeChange={setThemeMode}
+          onChangePassword={() => setPwdOpen(true)}
+          onLogout={handleLogout}
         />
-      </Sider>
-      <Layout>
-        <Header style={{ background: colorBgContainer, padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Space>
-            <KeyOutlined />
-            <Select
-              value={current?.id}
-              onChange={(id) => {
-                const env = environments.find((e) => e.id === id)
-                if (env) setCurrent(env)
-              }}
-              options={environments.map((e) => ({ label: e.name, value: e.id }))}
-              style={{ width: 160 }}
-              placeholder="选择环境"
-            />
-            {canManageEnv && (
-              <Button icon={<SettingOutlined />} onClick={() => setEnvOpen(true)}>
-                管理环境
-              </Button>
-            )}
-          </Space>
-          <Space>
-            <Dropdown
-              menu={{
-                items: [
-                  { key: 'light', icon: <SunOutlined />, label: '浅色' },
-                  { key: 'dark', icon: <MoonOutlined />, label: '深色' },
-                  { key: 'system', icon: <DesktopOutlined />, label: '跟随系统' },
-                ],
-                selectedKeys: [useThemeStore.getState().mode],
-                onClick: ({ key }) => useThemeStore.getState().setMode(key as ThemeMode),
-              }}
-            >
-              <Button
-                type="text"
-                icon={isDark ? <MoonOutlined /> : <SunOutlined />}
-              />
-            </Dropdown>
-            <Dropdown
-              menu={{
-                items: [
-                  { key: 'password', icon: <SettingOutlined />, label: '修改密码' },
-                  { key: 'logout', icon: <LogoutOutlined />, label: '退出登录' },
-                ],
-                onClick: ({ key }) => {
-                  if (key === 'logout') handleLogout()
-                  if (key === 'password') setPwdOpen(true)
-                },
-              }}
-            >
-            <Space style={{ cursor: 'pointer' }}>
-              <UserOutlined />
-              <Text>{user?.username}</Text>
-              <Tag color={user?.is_super ? 'red' : 'blue'}>{userLabel}</Tag>
-            </Space>
-            </Dropdown>
-          </Space>
-        </Header>
-        {syncStatuses.length > 0 && (
-          <Alert
-            message={`检测到 ${syncStatuses.length} 个环境的配置在当前 etcd 集群中不存在，可能需要恢复`}
-            type="warning"
-            showIcon
-            icon={<WarningOutlined />}
-            style={{ margin: '8px 16px 0' }}
-            action={
-              <Button size="small" type="primary" onClick={openSyncModal}>
-                查看详情
-              </Button>
-            }
-            closable
-            onClose={() => setSyncStatuses([])}
-          />
-        )}
-        <Content style={{ margin: 16, padding: 24, background: colorBgContainer, borderRadius: 8, overflow: 'auto' }}>
-          <Outlet />
-        </Content>
+        <SyncRestorePanel
+          statuses={syncStatuses}
+          selectedIds={selectedSyncEnvs}
+          open={syncModalOpen}
+          restoring={restoring}
+          onOpen={openSyncModal}
+          onClose={() => setSyncModalOpen(false)}
+          onDismiss={() => setSyncStatuses([])}
+          onSelectionChange={setSelectedSyncEnvs}
+          onRestore={handleRestore}
+        />
+        <Content className="app-content"><Outlet /></Content>
       </Layout>
-
-      {/* 修改密码 */}
-      <Modal
-        title="修改密码"
+      <PasswordModal
         open={pwdOpen}
-        onOk={handleChangePassword}
-        onCancel={() => { setPwdOpen(false); pwdForm.resetFields() }}
-        confirmLoading={pwdLoading}
-        destroyOnHidden
-      >
-        <Form form={pwdForm} layout="vertical">
-          <Form.Item name="old_password" label="当前密码" rules={[{ required: true, message: '请输入当前密码' }]}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item name="new_password" label="新密码" rules={[{ required: true, message: '请输入新密码' }, { min: 6, message: '至少 6 位' }]}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item
-            name="confirm_password"
-            label="确认新密码"
-            dependencies={['new_password']}
-            rules={[
-              { required: true, message: '请确认新密码' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('new_password') === value) return Promise.resolve()
-                  return Promise.reject(new Error('两次密码不一致'))
-                },
-              }),
-            ]}
-          >
-            <Input.Password />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 环境管理 */}
-      <Modal
-        title="环境管理"
+        loading={pwdLoading}
+        onCancel={() => setPwdOpen(false)}
+        onSubmit={handleChangePassword}
+      />
+      <EnvironmentManager
         open={envOpen}
-        onCancel={() => setEnvOpen(false)}
-        footer={null}
-        width={1100}
-      >
-        <div style={{ marginBottom: 16 }}>
-          {canManageEnv && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={openEnvCreate}>新建环境</Button>
-          )}
-        </div>
-        <Table rowKey="id" columns={envColumns} dataSource={environments} pagination={false} size="small" />
-      </Modal>
-
-      {/* 新建/编辑环境 */}
-      <Modal
-        title={editingEnv ? '编辑环境' : '新建环境'}
-        open={envModalOpen}
-        onOk={handleEnvSave}
-        onCancel={() => setEnvModalOpen(false)}
-        destroyOnHidden
-      >
-        <Form form={envForm} layout="vertical">
-          <Form.Item name="name" label="环境名称" rules={[{ required: true, message: '请输入环境名称' }]}>
-            <Input placeholder="例如: production" />
-          </Form.Item>
-          <Form.Item name="key_prefix" label="Key 前缀" rules={[{ required: true, message: '请输入 Key 前缀' }]}>
-            <Input placeholder="例如: /ai-adp/dev/" disabled={!!editingEnv} />
-          </Form.Item>
-          <Form.Item name="config_prefix" label="配置前缀" initialValue="config/">
-            <Input placeholder="例如: config/" />
-          </Form.Item>
-          <Form.Item name="gateway_prefix" label="网关服务前缀" initialValue="gw-services/">
-            <Input placeholder="例如: gw-services/" />
-          </Form.Item>
-          <Form.Item name="grpc_prefix" label="gRPC 服务前缀" initialValue="grpc-services/">
-            <Input placeholder="例如: grpc-services/" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="sort_order" label="排序" initialValue={0}>
-            <InputNumber min={0} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 配置恢复 */}
-      <Modal
-        title="配置恢复"
-        open={syncModalOpen}
-        onOk={handleRestore}
-        onCancel={() => setSyncModalOpen(false)}
-        confirmLoading={restoring}
-        okText="恢复选中环境"
-      >
-        <p style={{ marginBottom: 16 }}>
-          以下环境在数据库中有配置记录，但当前 etcd 集群中没有对应数据。选择要恢复的环境：
-        </p>
-        <Checkbox.Group
-          value={selectedSyncEnvs}
-          onChange={(values) => setSelectedSyncEnvs(values as string[])}
-          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-        >
-          {syncStatuses.map((s) => (
-            <Checkbox key={s.environment_id} value={s.environment_id}>
-              {s.environment_name}（数据库中 {s.db_key_count} 个配置）
-            </Checkbox>
-          ))}
-        </Checkbox.Group>
-      </Modal>
+        environments={environments}
+        canManage={canManageEnv}
+        onClose={() => setEnvOpen(false)}
+        onDelete={handleEnvDelete}
+        onSave={handleEnvSave}
+      />
     </Layout>
   )
 }

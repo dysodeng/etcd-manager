@@ -1,6 +1,7 @@
 @import './styles/tokens.css';
 @import './styles/primitives.css';
 @import './styles/login.css';
+@import './styles/layout.css';
 
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; min-width: 1280px; height: 100%; }
