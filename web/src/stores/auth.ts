@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { UserProfile } from '@/types'
 import { authApi } from '@/api/auth'
 
+export { canRead, canWrite, isSuper } from '@/utils/access'
+
 interface AuthState {
   token: string | null
   user: UserProfile | null
@@ -46,22 +48,3 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 }))
-
-// 权限工具函数
-export function canRead(user: UserProfile | null, module: string): boolean {
-  if (!user) return false
-  if (user.is_super) return true
-  if (!user.role) return false
-  return user.role.permissions.some(p => p.module === module && (p.can_read || p.can_write))
-}
-
-export function canWrite(user: UserProfile | null, module: string): boolean {
-  if (!user) return false
-  if (user.is_super) return true
-  if (!user.role) return false
-  return user.role.permissions.some(p => p.module === module && p.can_write)
-}
-
-export function isSuper(user: UserProfile | null): boolean {
-  return user?.is_super === true
-}

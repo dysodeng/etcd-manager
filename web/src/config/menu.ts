@@ -1,4 +1,5 @@
 import type { UserProfile } from '@/types'
+import { canRead, isSuper } from '@/utils/access'
 
 export interface MenuItemConfig {
   key: string
@@ -25,20 +26,6 @@ const sections = [
   { key: 'services', label: '服务治理' },
   { key: 'system', label: '系统管理' },
 ] as const
-
-function canRead(user: UserProfile | null, module: string): boolean {
-  if (!user) return false
-  if (user.is_super) return true
-  return Boolean(
-    user.role?.permissions.some(
-      (permission) => permission.module === module && (permission.can_read || permission.can_write),
-    ),
-  )
-}
-
-function isSuper(user: UserProfile | null): boolean {
-  return user?.is_super === true
-}
 
 // 获取用户有权限访问的菜单项
 export function getVisibleMenuKeys(user: UserProfile | null): string[] {
