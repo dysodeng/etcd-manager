@@ -37,6 +37,11 @@ type ConfigItem struct {
 	Value string `json:"value"`
 }
 
+const (
+	MaxConfigListItems = 500
+	MaxConfigListBytes = 10 << 20
+)
+
 func (s *ConfigService) resolveAuthorizedEnvironment(ctx context.Context, envName string) (*domain.Environment, error) {
 	env, err := s.envRepo.GetByName(ctx, envName)
 	if err != nil {
@@ -55,12 +60,20 @@ func (s *ConfigService) List(ctx context.Context, envName, prefix string) ([]Con
 	}
 	configBase := env.KeyPrefix + env.ConfigPrefix
 	fullPrefix := configBase + prefix
-	resp, err := s.configStore.GetWithPrefix(ctx, fullPrefix, 0)
+	resp, err := s.configStore.GetWithPrefix(ctx, fullPrefix, MaxConfigListItems+1)
 	if err != nil {
 		return nil, err
 	}
+	if len(resp.Kvs) > MaxConfigListItems {
+		return nil, ErrConfigListLimitExceeded
+	}
 	items := make([]ConfigItem, 0, len(resp.Kvs))
+	totalBytes := 0
 	for _, kv := range resp.Kvs {
+		totalBytes += len(kv.Key) + len(kv.Value)
+		if totalBytes > MaxConfigListBytes {
+			return nil, ErrConfigListLimitExceeded
+		}
 		shortKey := strings.TrimPrefix(string(kv.Key), configBase)
 		items = append(items, ConfigItem{Key: shortKey, Value: string(kv.Value)})
 	}

@@ -6,12 +6,13 @@ import (
 )
 
 var (
-	ErrKeyExists          = errors.New("key already exists")
-	ErrKeyNotFound        = errors.New("key not found")
-	ErrConfigConflict     = errors.New("configuration changed concurrently")
-	ErrConfigPersistence  = errors.New("configuration revision persistence failed")
-	ErrConfigInconsistent = errors.New("configuration state may be inconsistent")
-	ErrRevisionNotFound   = errors.New("revision not found")
+	ErrKeyExists               = errors.New("key already exists")
+	ErrKeyNotFound             = errors.New("key not found")
+	ErrConfigConflict          = errors.New("configuration changed concurrently")
+	ErrConfigPersistence       = errors.New("configuration revision persistence failed")
+	ErrConfigInconsistent      = errors.New("configuration state may be inconsistent")
+	ErrRevisionNotFound        = errors.New("revision not found")
+	ErrConfigListLimitExceeded = errors.New("config list exceeds resource limit")
 )
 
 type ConfigPersistenceError struct {

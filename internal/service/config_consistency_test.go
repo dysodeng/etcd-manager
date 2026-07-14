@@ -1,12 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/dysodeng/etcd-manager/internal/domain"
@@ -14,16 +17,17 @@ import (
 )
 
 type fakeConfigStore struct {
-	snapshot      etcd.ConfigSnapshot
-	getErr        error
-	createResult  etcd.ConditionalResult
-	createErr     error
-	putResult     etcd.ConditionalResult
-	putErr        error
-	deleteResult  etcd.ConditionalResult
-	deleteErr     error
-	compensated   bool
-	compensateErr error
+	prefixResponse *clientv3.GetResponse
+	snapshot       etcd.ConfigSnapshot
+	getErr         error
+	createResult   etcd.ConditionalResult
+	createErr      error
+	putResult      etcd.ConditionalResult
+	putErr         error
+	deleteResult   etcd.ConditionalResult
+	deleteErr      error
+	compensated    bool
+	compensateErr  error
 
 	getCalls                int
 	createCalls             int
@@ -36,6 +40,9 @@ type fakeConfigStore struct {
 }
 
 func (s *fakeConfigStore) GetWithPrefix(context.Context, string, int64) (*clientv3.GetResponse, error) {
+	if s.prefixResponse != nil {
+		return s.prefixResponse, nil
+	}
 	return &clientv3.GetResponse{}, nil
 }
 func (s *fakeConfigStore) GetConfig(context.Context, string) (etcd.ConfigSnapshot, error) {
@@ -107,6 +114,40 @@ func TestConfigCreateReturnsKeyExistsOnCompareFailure(t *testing.T) {
 	}
 	if store.putCalls != 0 {
 		t.Fatal("fallback put must not occur")
+	}
+}
+
+func TestConfigListRejectsTooManyItems(t *testing.T) {
+	kvs := make([]*mvccpb.KeyValue, MaxConfigListItems+1)
+	for i := range kvs {
+		kvs[i] = &mvccpb.KeyValue{
+			Key:   []byte(fmt.Sprintf("/dev/config/key-%03d", i)),
+			Value: []byte("value"),
+		}
+	}
+	store := &fakeConfigStore{prefixResponse: &clientv3.GetResponse{Kvs: kvs}}
+	svc := newConsistencyTestService(store, &fakeConfigRevisionRepository{})
+
+	_, err := svc.List(authorizedConfigContext(), "dev", "")
+
+	if !errors.Is(err, ErrConfigListLimitExceeded) {
+		t.Fatalf("error = %v, want ErrConfigListLimitExceeded", err)
+	}
+}
+
+func TestConfigListRejectsTooManyBytes(t *testing.T) {
+	store := &fakeConfigStore{prefixResponse: &clientv3.GetResponse{Kvs: []*mvccpb.KeyValue{
+		{
+			Key:   []byte("/dev/config/large.yaml"),
+			Value: bytes.Repeat([]byte("x"), MaxConfigListBytes),
+		},
+	}}}
+	svc := newConsistencyTestService(store, &fakeConfigRevisionRepository{})
+
+	_, err := svc.List(authorizedConfigContext(), "dev", "")
+
+	if !errors.Is(err, ErrConfigListLimitExceeded) {
+		t.Fatalf("error = %v, want ErrConfigListLimitExceeded", err)
 	}
 }
 

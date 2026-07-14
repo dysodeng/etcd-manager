@@ -8,23 +8,24 @@ import (
 
 // 错误码
 const (
-	CodeSuccess          = 0
-	CodeParamInvalid     = 10001
-	CodeUnauthorized     = 10002
-	CodeForbidden        = 10003
-	CodeKeyExists        = 20001
-	CodeKeyNotFound      = 20002
-	CodeRevisionNotFound = 20003
-	CodeEnvExists        = 20004
-	CodeEnvHasConfigs    = 20005
-	CodeConfigConflict   = 20006
-	CodeEtcdConnFailed   = 30001
-	CodeEtcdOpFailed     = 30002
-	CodeUserExists       = 40001
-	CodeAuthFailed       = 40002
-	CodeImportFormat     = 50001
-	CodeImportPartial    = 50002
-	CodeInternalError    = 99999
+	CodeSuccess             = 0
+	CodeParamInvalid        = 10001
+	CodeUnauthorized        = 10002
+	CodeForbidden           = 10003
+	CodeKeyExists           = 20001
+	CodeKeyNotFound         = 20002
+	CodeRevisionNotFound    = 20003
+	CodeEnvExists           = 20004
+	CodeEnvHasConfigs       = 20005
+	CodeConfigConflict      = 20006
+	CodeConfigLimitExceeded = 20007
+	CodeEtcdConnFailed      = 30001
+	CodeEtcdOpFailed        = 30002
+	CodeUserExists          = 40001
+	CodeAuthFailed          = 40002
+	CodeImportFormat        = 50001
+	CodeImportPartial       = 50002
+	CodeInternalError       = 99999
 )
 
 type Response struct {

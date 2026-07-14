@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"io"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,8 @@ type ConfigCenterHandler struct {
 	envSvc    *service.EnvironmentService
 	auditSvc  *service.AuditService
 }
+
+const MaxConfigImportBytes int64 = 10 << 20
 
 func NewConfigCenterHandler(
 	configSvc *service.ConfigService,
@@ -41,6 +44,8 @@ func configWriteErrorCode(err error) int {
 		return CodeKeyNotFound
 	case errors.Is(err, service.ErrConfigConflict):
 		return CodeConfigConflict
+	case errors.Is(err, service.ErrConfigListLimitExceeded):
+		return CodeConfigLimitExceeded
 	case errors.Is(err, service.ErrRevisionNotFound):
 		return CodeRevisionNotFound
 	}
@@ -302,8 +307,13 @@ func (h *ConfigCenterHandler) Import(c *gin.Context) {
 		Fail(c, CodeParamInvalid, "env is required")
 		return
 	}
-	body, err := io.ReadAll(c.Request.Body)
+	body, err := readConfigImportBody(c.Writer, c.Request)
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			Fail(c, CodeParamInvalid, "import body exceeds 10 MiB")
+			return
+		}
 		Fail(c, CodeImportFormat, "failed to read request body")
 		return
 	}
@@ -325,4 +335,10 @@ func (h *ConfigCenterHandler) Import(c *gin.Context) {
 		return
 	}
 	OK(c, result)
+}
+
+func readConfigImportBody(w http.ResponseWriter, request *http.Request) ([]byte, error) {
+	request.Body = http.MaxBytesReader(w, request.Body, MaxConfigImportBytes)
+	defer request.Body.Close()
+	return io.ReadAll(request.Body)
 }

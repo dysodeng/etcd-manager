@@ -8,23 +8,24 @@ import (
 
 // Re-export constants from response package for handler convenience
 const (
-	CodeSuccess          = response.CodeSuccess
-	CodeParamInvalid     = response.CodeParamInvalid
-	CodeUnauthorized     = response.CodeUnauthorized
-	CodeForbidden        = response.CodeForbidden
-	CodeKeyExists        = response.CodeKeyExists
-	CodeKeyNotFound      = response.CodeKeyNotFound
-	CodeRevisionNotFound = response.CodeRevisionNotFound
-	CodeEnvExists        = response.CodeEnvExists
-	CodeEnvHasConfigs    = response.CodeEnvHasConfigs
-	CodeConfigConflict   = response.CodeConfigConflict
-	CodeEtcdConnFailed   = response.CodeEtcdConnFailed
-	CodeEtcdOpFailed     = response.CodeEtcdOpFailed
-	CodeUserExists       = response.CodeUserExists
-	CodeAuthFailed       = response.CodeAuthFailed
-	CodeImportFormat     = response.CodeImportFormat
-	CodeImportPartial    = response.CodeImportPartial
-	CodeInternalError    = response.CodeInternalError
+	CodeSuccess             = response.CodeSuccess
+	CodeParamInvalid        = response.CodeParamInvalid
+	CodeUnauthorized        = response.CodeUnauthorized
+	CodeForbidden           = response.CodeForbidden
+	CodeKeyExists           = response.CodeKeyExists
+	CodeKeyNotFound         = response.CodeKeyNotFound
+	CodeRevisionNotFound    = response.CodeRevisionNotFound
+	CodeEnvExists           = response.CodeEnvExists
+	CodeEnvHasConfigs       = response.CodeEnvHasConfigs
+	CodeConfigConflict      = response.CodeConfigConflict
+	CodeConfigLimitExceeded = response.CodeConfigLimitExceeded
+	CodeEtcdConnFailed      = response.CodeEtcdConnFailed
+	CodeEtcdOpFailed        = response.CodeEtcdOpFailed
+	CodeUserExists          = response.CodeUserExists
+	CodeAuthFailed          = response.CodeAuthFailed
+	CodeImportFormat        = response.CodeImportFormat
+	CodeImportPartial       = response.CodeImportPartial
+	CodeInternalError       = response.CodeInternalError
 )
 
 // Response is re-exported for use in handlers
