@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Table, Space, Input, DatePicker, Button, Tag, Pagination, message } from 'antd'
+import { Table, Input, DatePicker, Button, Pagination, message } from 'antd'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import type { AuditLog, AuditLogFilter } from '@/types'
 import { auditApi } from '@/api/audit'
+import { CopyableCode, PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
 import { formatTime } from '@/utils'
 
 const { RangePicker } = DatePicker
@@ -41,41 +43,65 @@ export default function AuditPage() {
     fetchData(1, empty)
   }
 
-  const actionColors: Record<string, string> = {
-    create: 'green', update: 'blue', delete: 'red', login: 'purple', rollback: 'orange',
+  const actionTones: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+    create: 'success',
+    online: 'success',
+    update: 'info',
+    login: 'info',
+    delete: 'danger',
+    offline: 'danger',
+    rollback: 'warning',
+    restore: 'warning',
+    transfer_super: 'warning',
   }
 
   const columns = [
     { title: '操作人', dataIndex: 'username', key: 'username', width: 100 },
     {
       title: '操作', dataIndex: 'action', key: 'action', width: 100,
-      render: (a: string) => <Tag color={actionColors[a] ?? 'default'}>{a}</Tag>,
+      render: (action: string) => <StatusBadge tone={actionTones[action] ?? 'neutral'}>{action}</StatusBadge>,
     },
     { title: '资源类型', dataIndex: 'resource_type', key: 'resource_type', width: 120 },
-    { title: '资源标识', dataIndex: 'resource_key', key: 'resource_key', ellipsis: true },
+    {
+      title: '资源标识', dataIndex: 'resource_key', key: 'resource_key', ellipsis: true,
+      render: (value: string) => value ? <CopyableCode value={value} /> : '-',
+    },
     { title: '详情', dataIndex: 'detail', key: 'detail', ellipsis: true },
-    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 140 },
+    {
+      title: 'IP', dataIndex: 'ip', key: 'ip', width: 160,
+      render: (value: string) => value ? <CopyableCode value={value} /> : '-',
+    },
     { title: '时间', dataIndex: 'created_at', key: 'created_at', width: 170, render: formatTime },
   ]
 
   return (
     <>
-      <Space style={{ marginBottom: 16 }} wrap>
+      <PageHeader
+        eyebrow="Audit Trail"
+        title="审计日志"
+        description="追踪控制台操作记录、资源变更与访问来源"
+      />
+
+      <PageToolbar>
         <Input
+          className="audit-filter-input"
           prefix={<SearchOutlined />}
           placeholder="操作类型"
           value={filter.action ?? ''}
           onChange={(e) => setFilter((f) => ({ ...f, action: e.target.value || undefined }))}
-          style={{ width: 150 }}
         />
         <Input
+          className="audit-filter-input"
           placeholder="资源类型"
           value={filter.resource_type ?? ''}
           onChange={(e) => setFilter((f) => ({ ...f, resource_type: e.target.value || undefined }))}
-          style={{ width: 150 }}
         />
         <RangePicker
+          className="audit-filter-range"
           showTime
+          value={filter.start_time && filter.end_time
+            ? [dayjs(filter.start_time), dayjs(filter.end_time)]
+            : null}
           onChange={(dates) => {
             if (dates?.[0] && dates?.[1]) {
               setFilter((f) => ({
@@ -90,10 +116,12 @@ export default function AuditPage() {
         />
         <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>搜索</Button>
         <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
-      </Space>
+      </PageToolbar>
 
-      <Table rowKey="id" columns={columns} dataSource={logs} loading={loading} pagination={false} size="middle" />
-      <div style={{ textAlign: 'right', marginTop: 16 }}>
+      <SectionCard title="操作记录" description={`共 ${total} 条日志`}>
+        <Table className="data-table" rowKey="id" columns={columns} dataSource={logs} loading={loading} pagination={false} size="middle" />
+      </SectionCard>
+      <div className="page-pagination">
         <Pagination current={page} total={total} pageSize={20} showSizeChanger={false} onChange={(p) => { setPage(p); fetchData(p) }} />
       </div>
     </>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Pagination } from 'antd'
+import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Pagination, Result } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { User, Role } from '@/types'
 import { userApi } from '@/api/user'
 import { roleApi } from '@/api/role'
-import { useAuthStore, isSuper } from '@/stores/auth'
+import { useAuthStore, canRead, canWrite, isSuper } from '@/stores/auth'
+import { PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
 import { formatTime } from '@/utils'
 
 export default function UsersPage() {
@@ -17,6 +18,8 @@ export default function UsersPage() {
   const [form] = Form.useForm()
   const { user: currentUser } = useAuthStore()
   const isSuperAdmin = isSuper(currentUser)
+  const canAccessUsers = canRead(currentUser, 'users')
+  const isAdmin = canWrite(currentUser, 'users')
 
   // 转移超管
   const [transferOpen, setTransferOpen] = useState(false)
@@ -43,9 +46,10 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
+    if (!canAccessUsers) return
     fetchData(1)
-    fetchRoles()
-  }, [])
+    if (isSuperAdmin) fetchRoles()
+  }, [canAccessUsers, isSuperAdmin])
 
   const handleCreate = async () => {
     const values = await form.validateFields()
@@ -101,16 +105,18 @@ export default function UsersPage() {
       title: '角色', key: 'role', width: 200,
       render: (_: unknown, record: User) => {
         if (record.is_super) {
-          return <Tag color="red">超级管理员</Tag>
+          return <StatusBadge tone="danger">超级管理员</StatusBadge>
         }
         if (!isSuperAdmin) {
-          return <Tag color="blue">{record.role_name || '无角色'}</Tag>
+          return record.role_name
+            ? <StatusBadge tone="info">{record.role_name}</StatusBadge>
+            : <StatusBadge tone="neutral">无角色</StatusBadge>
         }
         return (
           <Select
             value={record.role_id ?? undefined}
             onChange={(v: string) => handleUpdateRole(record.id, v)}
-            options={roles.map(r => ({ label: r.name, value: r.id }))}
+            options={roles.map(r => ({ label: <StatusBadge tone="info">{r.name}</StatusBadge>, value: r.id }))}
             style={{ width: 160 }}
             variant="borderless"
             placeholder="选择角色"
@@ -122,7 +128,7 @@ export default function UsersPage() {
     {
       title: '操作', key: 'actions', width: 100,
       render: (_: unknown, record: User) =>
-        record.is_super ? null : (
+        record.is_super || !isAdmin ? null : (
           <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.id)}>
             <Button size="small" danger>删除</Button>
           </Popconfirm>
@@ -132,18 +138,35 @@ export default function UsersPage() {
 
   const nonSuperUsers = users.filter(u => !u.is_super && u.id !== currentUser?.user_id)
 
+  if (!canAccessUsers) {
+    return <Result status="403" title="无权访问" subTitle="当前角色没有用户管理权限" />
+  }
+
   return (
     <>
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true) }}>新建用户</Button>
-        {isSuperAdmin && (
-          <Button onClick={() => { transferForm.resetFields(); setTransferOpen(true) }}>转移超管</Button>
-        )}
-      </Space>
+      <PageHeader
+        eyebrow="User Management"
+        title="用户管理"
+        description="管理控制台用户、角色归属与超级管理员身份"
+        extra={isSuperAdmin ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true) }}>
+            新建用户
+          </Button>
+        ) : undefined}
+      />
 
-      <Table rowKey="id" columns={columns} dataSource={users} loading={loading} pagination={false} size="middle" />
-      <div style={{ textAlign: 'right', marginTop: 16 }}>
+      <PageToolbar
+        trailing={isSuperAdmin ? (
+          <Button onClick={() => { transferForm.resetFields(); setTransferOpen(true) }}>转移超管</Button>
+        ) : undefined}
+      >
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+      </PageToolbar>
+
+      <SectionCard title="用户列表" description={`共 ${total} 个用户`}>
+        <Table className="data-table" rowKey="id" columns={columns} dataSource={users} loading={loading} pagination={false} size="middle" />
+      </SectionCard>
+      <div className="page-pagination">
         <Pagination current={page} total={total} pageSize={20} showSizeChanger={false} onChange={(p) => { setPage(p); fetchData(p) }} />
       </div>
 

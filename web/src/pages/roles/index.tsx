@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Modal, Form, Input, Checkbox, message,
-  Popconfirm, Pagination, Tag, Select,
+  Popconfirm, Pagination, Tag, Select, Result,
 } from 'antd'
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { Role, RolePermission, Environment } from '@/types'
 import { roleApi } from '@/api/role'
+import { useAuthStore, isSuper } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
+import { PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import { formatTime } from '@/utils'
+import { updatePermissionState, type PermissionState } from './permissions'
 
 const ALL_MODULES = [
   { key: 'kv', label: 'KV 管理' },
@@ -28,14 +31,16 @@ export default function RolesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [form] = Form.useForm()
-  const [permissions, setPermissions] = useState<Record<string, { can_read: boolean; can_write: boolean }>>({})
+  const [permissions, setPermissions] = useState<PermissionState>({})
   const [selectedEnvIds, setSelectedEnvIds] = useState<string[]>([])
+  const currentUser = useAuthStore(state => state.user)
+  const isSuperAdmin = isSuper(currentUser)
   const { environments, fetch: fetchEnvs } = useEnvironmentStore()
 
   const fetchData = async (p?: number) => {
     setLoading(true)
     try {
-      const data = await roleApi.list(p ?? page)
+      const data = await roleApi.list(p ?? page, 20)
       setRoles(data.list)
       setTotal(data.total)
     } catch (err: unknown) {
@@ -46,9 +51,10 @@ export default function RolesPage() {
   }
 
   useEffect(() => {
+    if (!isSuperAdmin) return
     fetchData(1)
     fetchEnvs()
-  }, [])
+  }, [isSuperAdmin])
 
   const initPermissions = (perms?: RolePermission[]) => {
     const map: Record<string, { can_read: boolean; can_write: boolean }> = {}
@@ -122,18 +128,7 @@ export default function RolesPage() {
   }
 
   const togglePermission = (module: string, field: 'can_read' | 'can_write') => {
-    setPermissions(prev => {
-      const current = prev[module] ?? { can_read: false, can_write: false }
-      const updated = { ...current }
-      if (field === 'can_write') {
-        updated.can_write = !updated.can_write
-        if (updated.can_write) updated.can_read = true
-      } else {
-        updated.can_read = !updated.can_read
-        if (!updated.can_read) updated.can_write = false
-      }
-      return { ...prev, [module]: updated }
-    })
+    setPermissions(current => updatePermissionState(current, module, field))
   }
 
   const columns = [
@@ -183,15 +178,27 @@ export default function RolesPage() {
     },
   ]
 
+  if (!isSuperAdmin) {
+    return <Result status="403" title="无权访问" subTitle="角色管理仅限超级管理员使用" />
+  }
+
   return (
     <>
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建角色</Button>
-      </Space>
+      <PageHeader
+        eyebrow="Role Management"
+        title="角色管理"
+        description="配置角色的环境授权与模块读写权限"
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建角色</Button>}
+      />
 
-      <Table rowKey="id" columns={columns} dataSource={roles} loading={loading} pagination={false} size="middle" />
-      <div style={{ textAlign: 'right', marginTop: 16 }}>
+      <PageToolbar>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+      </PageToolbar>
+
+      <SectionCard title="角色列表" description={`共 ${total} 个角色`}>
+        <Table className="data-table" rowKey="id" columns={columns} dataSource={roles} loading={loading} pagination={false} size="middle" />
+      </SectionCard>
+      <div className="page-pagination">
         <Pagination current={page} total={total} pageSize={20} showSizeChanger={false} onChange={(p) => { setPage(p); fetchData(p) }} />
       </div>
 
@@ -203,17 +210,20 @@ export default function RolesPage() {
         width={600}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical">
-          <Form.Item name="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }]}>
-            <Input placeholder="例如: 运维组" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-        </Form>
+        <div className="app-modal-section management-modal-section">
+          <h3>基本信息</h3>
+          <Form form={form} layout="vertical">
+            <Form.Item name="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }]}>
+              <Input placeholder="例如: 运维组" />
+            </Form.Item>
+            <Form.Item name="description" label="描述">
+              <Input.TextArea rows={2} />
+            </Form.Item>
+          </Form>
+        </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 500, marginBottom: 8 }}>授权环境</div>
+        <div className="app-modal-section management-modal-section">
+          <h3>授权环境</h3>
           <Select
             mode="multiple"
             style={{ width: '100%' }}
@@ -224,9 +234,10 @@ export default function RolesPage() {
           />
         </div>
 
-        <div>
-          <div style={{ fontWeight: 500, marginBottom: 8 }}>模块权限</div>
+        <div className="app-modal-section management-modal-section">
+          <h3>模块权限</h3>
           <Table
+            className="data-table"
             rowKey="key"
             columns={permColumns}
             dataSource={ALL_MODULES}
