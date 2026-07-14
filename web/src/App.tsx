@@ -1,10 +1,11 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider, Spin, theme as antTheme } from 'antd'
+import { ConfigProvider, Spin } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useAuthStore } from '@/stores/auth'
 import { getDefaultRoute } from '@/config/menu'
 import { useIsDark } from '@/stores/theme'
+import { createAppTheme } from '@/theme'
 
 const MainLayout = lazy(() => import('@/layouts/MainLayout'))
 const LoginPage = lazy(() => import('@/pages/login'))
@@ -31,12 +32,14 @@ function DefaultRedirect() {
 export default function App() {
   const isDark = useIsDark()
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+  }, [isDark])
+
   return (
     <ConfigProvider
       locale={zhCN}
-      theme={{
-        algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
-      }}
+      theme={createAppTheme(isDark)}
     >
       <BrowserRouter>
         <Suspense fallback={<Spin fullscreen tip="加载中..." />}>
