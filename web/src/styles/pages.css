@@ -108,3 +108,17 @@
 .service-groups .ant-collapse-item {
   border-color: var(--border);
 }
+
+.service-groups.ant-collapse {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.service-groups .ant-collapse-item:last-child {
+  border-bottom: 0;
+}
+
+.service-groups .ant-collapse-content-box {
+  padding: 0;
+}
