@@ -27,6 +27,18 @@
   height: 44px;
 }
 
+.fragmentation-progress--success {
+  --fragmentation-tone: var(--success);
+}
+
+.fragmentation-progress--warning {
+  --fragmentation-tone: var(--warning);
+}
+
+.fragmentation-progress--danger {
+  --fragmentation-tone: var(--danger);
+}
+
 .page-pagination {
   display: flex;
   justify-content: flex-end;

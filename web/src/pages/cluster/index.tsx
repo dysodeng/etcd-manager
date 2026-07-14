@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Descriptions, Table, Spin, Button, Space, Result, message, Progress, Alert,
+  Descriptions, Table, Spin, Button, Space, Result, message, Alert,
 } from 'antd'
 import {
   ReloadOutlined, DisconnectOutlined,
@@ -8,7 +8,8 @@ import {
 import type { ClusterStatus, ClusterMetrics, MemberStatus, AlarmInfo } from '@/types'
 import { clusterApi } from '@/api/cluster'
 import { MetricCard, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
-import { buildClusterMetricView, formatBytes, getFragmentation } from './presentation'
+import { FragmentationProgress } from './FragmentationProgress'
+import { buildClusterMetricView, formatBytes } from './presentation'
 
 export default function ClusterPage() {
   const [status, setStatus] = useState<ClusterStatus | null>(null)
@@ -179,10 +180,9 @@ export default function ClusterPage() {
                 { title: 'DB 使用', key: 'db_use', width: 100, render: (_: unknown, r: MemberStatus) => formatBytes(r.db_size_in_use) },
                 {
                   title: '碎片率', key: 'frag', width: 100,
-                  render: (_: unknown, r: MemberStatus) => {
-                    const { percent } = getFragmentation(r.db_size, r.db_size_in_use)
-                    return <Progress percent={percent} size="small" status={percent > 50 ? 'exception' : 'success'} />
-                  },
+                  render: (_: unknown, r: MemberStatus) => (
+                    <FragmentationProgress dbSize={r.db_size} dbSizeInUse={r.db_size_in_use} />
+                  ),
                 },
                 // Raft Index - Raft 日志最新条目索引，代表集群收到的写操作总序号
                 { title: 'Raft Index', dataIndex: 'raft_index', key: 'raft_index', width: 110 },
