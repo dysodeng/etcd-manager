@@ -5,13 +5,14 @@ import type { KVItem } from '@/types'
 import { kvApi } from '@/api/kv'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import MonacoEditor from '@/components/MonacoEditor'
-import { PageHeader, PageToolbar, SectionCard } from '@/components/ui'
+import { EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import KVTreeView from './KVTreeView'
 import { buildKVTree } from './buildKVTree'
 
 export default function KVPage() {
   const [items, setItems] = useState<KVItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [prefix, setPrefix] = useState('/')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<KVItem | null>(null)
@@ -20,14 +21,20 @@ export default function KVPage() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = canWrite(user, 'kv')
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list')
+  const [saving, setSaving] = useState(false)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
+  const hasData = items.length > 0
 
-  const fetchData = async (p?: string) => {
+  const fetchData = async (prefixOverride?: string) => {
     setLoading(true)
+    setError(null)
     try {
-      const data = await kvApi.list(p ?? prefix)
+      const data = await kvApi.list(prefixOverride ?? prefix)
       setItems(data ?? [])
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '加载失败')
+    } catch (caught: unknown) {
+      const text = caught instanceof Error ? caught.message : '加载失败'
+      setError(text)
+      if (hasData) message.error(text)
     } finally {
       setLoading(false)
     }
@@ -51,6 +58,7 @@ export default function KVPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields()
+    setSaving(true)
     try {
       if (editing) {
         await kvApi.update(values.key as string, editorValue)
@@ -63,16 +71,21 @@ export default function KVPage() {
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setSaving(false)
     }
   }
 
   const handleDelete = async (key: string) => {
+    setDeletingKey(key)
     try {
       await kvApi.delete(key)
       message.success('删除成功')
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '删除失败')
+    } finally {
+      setDeletingKey(null)
     }
   }
 
@@ -93,6 +106,7 @@ export default function KVPage() {
             description={`将永久删除 ${record.key}`}
             onConfirm={() => handleDelete(record.key)}
             disabled={!isAdmin}
+            okButtonProps={{ loading: deletingKey === record.key }}
           >
             <Button size="small" danger disabled={!isAdmin}>删除</Button>
           </Popconfirm>
@@ -100,6 +114,8 @@ export default function KVPage() {
       ),
     },
   ]
+
+  if (error && !hasData) return <ErrorState description={error} onRetry={fetchData} />
 
   return (
     <>
@@ -129,7 +145,7 @@ export default function KVPage() {
           onChange={(event) => setPrefix(event.target.value)}
           onPressEnter={() => fetchData()}
         />
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>刷新</Button>
       </PageToolbar>
 
       <SectionCard className="resource-card">
@@ -142,11 +158,22 @@ export default function KVPage() {
             loading={loading}
             pagination={false}
             size="middle"
+            locale={{
+              emptyText: (
+                <EmptyState
+                  title="暂无 KV 数据"
+                  description="当前前缀下没有键值"
+                  action={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建键值</Button> : undefined}
+                />
+              ),
+            }}
           />
         ) : (
           <KVTreeView
             treeData={buildKVTree(items)}
             isAdmin={isAdmin}
+            deletingKey={deletingKey}
+            onCreate={openCreate}
             onEdit={openEdit}
             onDelete={handleDelete}
           />
@@ -160,6 +187,10 @@ export default function KVPage() {
         onCancel={() => setModalOpen(false)}
         width={700}
         destroyOnHidden
+        className="app-modal"
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={saving}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="key" label="Key" rules={[{ required: true, message: '请输入 Key' }]}>

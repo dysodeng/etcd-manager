@@ -32,6 +32,9 @@ export default function PasswordModal({ open, loading, onCancel, onSubmit }: Pas
       afterClose={() => form.resetFields()}
       confirmLoading={loading}
       destroyOnHidden
+      className="app-modal"
+      okText="确认修改"
+      cancelText="取消"
     >
       <Form form={form} layout="vertical">
         <Form.Item name="old_password" label="当前密码" rules={[{ required: true, message: '请输入当前密码' }]}>

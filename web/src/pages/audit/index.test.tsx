@@ -80,4 +80,24 @@ describe('AuditPage access', () => {
       expect(boundary.list).toHaveBeenCalledWith({ page: 1, page_size: 20 })
     })
   })
+
+  it('renders a retryable error state when the initial request fails', async () => {
+    boundary.user = roleUser([{ module: 'audit_logs', can_read: true, can_write: false }])
+    boundary.list.mockRejectedValueOnce(new Error('审计服务暂不可用'))
+
+    render(<AuditPage />)
+
+    expect(await screen.findByText('审计服务暂不可用')).toBeTruthy()
+    boundary.list.mockResolvedValueOnce({ list: [], total: 0, page: 1, page_size: 20 })
+    screen.getByRole('button', { name: '重新加载' }).click()
+    await waitFor(() => expect(boundary.list).toHaveBeenCalledTimes(2))
+  })
+
+  it('renders the designed empty state after an empty response', async () => {
+    boundary.user = roleUser([{ module: 'audit_logs', can_read: true, can_write: false }])
+
+    render(<AuditPage />)
+
+    expect(await screen.findByText('暂无审计日志')).toBeTruthy()
+  })
 })

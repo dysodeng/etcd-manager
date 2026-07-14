@@ -8,6 +8,10 @@
   margin-bottom: 20px;
 }
 
+.cluster-descriptions {
+  margin-bottom: 16px;
+}
+
 .alarm-list {
   margin: 0;
   padding-left: 20px;
@@ -138,5 +142,28 @@
 }
 
 .service-count .ant-badge-count {
+  background: var(--primary);
+}
+
+.service-group-name {
+  font-weight: 500;
+}
+
+.monaco-editor-shell {
+  position: relative;
+}
+
+.monaco-editor-expand {
+  position: absolute;
+  z-index: 10;
+  top: 4px;
+  right: 16px;
+  color: var(--editor-overlay-text);
+  background: var(--editor-overlay);
+}
+
+.monaco-editor-expand:hover,
+.monaco-editor-expand:focus-visible {
+  color: var(--surface);
   background: var(--primary);
 }

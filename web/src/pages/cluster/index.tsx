@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Descriptions, Table, Spin, Button, Space, Result, message, Alert,
+  Descriptions, Table, Button, Space, message, Alert,
 } from 'antd'
 import {
-  ReloadOutlined, DisconnectOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
 import type { ClusterStatus, ClusterMetrics, MemberStatus, AlarmInfo } from '@/types'
 import { clusterApi } from '@/api/cluster'
-import { MetricCard, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
+import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { FragmentationProgress } from './FragmentationProgress'
 import { buildClusterMetricView, formatBytes } from './presentation'
 
@@ -93,17 +93,10 @@ export default function ClusterPage() {
     </ul>
   )
 
-  if (loading && !status) return <Spin style={{ display: 'block', margin: '48px auto' }} />
+  if (loading && !status) return <LoadingState rows={6} />
 
   if (error && !status) {
-    return (
-      <Result
-        icon={<DisconnectOutlined />}
-        title="无法连接 etcd 集群"
-        subTitle={error}
-        extra={<Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>重试</Button>}
-      />
-    )
+    return <ErrorState title="无法连接 etcd 集群" description={error} onRetry={fetchData} />
   }
 
   return (
@@ -140,7 +133,7 @@ export default function ClusterPage() {
 
       <div className="page-stack">
         <SectionCard title="集群成员" description={`共 ${status?.members.length ?? 0} 个成员`}>
-          <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
+          <Descriptions className="cluster-descriptions" column={2} size="small">
             <Descriptions.Item label="集群 ID">{status?.cluster_id}</Descriptions.Item>
             <Descriptions.Item label="Leader">{status?.leader}</Descriptions.Item>
           </Descriptions>
@@ -151,6 +144,15 @@ export default function ClusterPage() {
             columns={memberColumns}
             pagination={false}
             size="middle"
+            locale={{
+              emptyText: (
+                <EmptyState
+                  title="暂无集群成员"
+                  description="未从当前 etcd 集群读取到成员信息"
+                  action={<Button icon={<ReloadOutlined />} onClick={fetchData}>重新加载</Button>}
+                />
+              ),
+            }}
           />
         </SectionCard>
 

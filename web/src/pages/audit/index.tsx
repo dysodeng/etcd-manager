@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import type { AuditLog, AuditLogFilter } from '@/types'
 import { auditApi } from '@/api/audit'
 import { useAuthStore, canRead } from '@/stores/auth'
-import { CopyableCode, PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
+import { CopyableCode, EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
 import { formatTime } from '@/utils'
 
 const { RangePicker } = DatePicker
@@ -15,18 +15,22 @@ export default function AuditPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<AuditLogFilter>({})
   const { user: currentUser } = useAuthStore()
   const canAccessAudit = canRead(currentUser, 'audit_logs')
 
   const fetchData = async (p?: number, f?: AuditLogFilter) => {
     setLoading(true)
+    setError(null)
     try {
       const data = await auditApi.list({ ...(f ?? filter), page: p ?? page, page_size: 20 })
       setLogs(data.list)
       setTotal(data.total)
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '加载失败')
+    } catch (caught: unknown) {
+      const text = caught instanceof Error ? caught.message : '加载失败'
+      setError(text)
+      if (logs.length > 0) message.error(text)
     } finally {
       setLoading(false)
     }
@@ -84,6 +88,8 @@ export default function AuditPage() {
     return <Result status="403" title="无权访问" subTitle="当前角色没有审计日志权限" />
   }
 
+  if (error && logs.length === 0) return <ErrorState description={error} onRetry={() => fetchData(1)} />
+
   return (
     <>
       <PageHeader
@@ -129,7 +135,16 @@ export default function AuditPage() {
       </PageToolbar>
 
       <SectionCard title="操作记录" description={`共 ${total} 条日志`}>
-        <Table className="data-table" rowKey="id" columns={columns} dataSource={logs} loading={loading} pagination={false} size="middle" />
+        <Table
+          className="data-table"
+          rowKey="id"
+          columns={columns}
+          dataSource={logs}
+          loading={loading}
+          pagination={false}
+          size="middle"
+          locale={{ emptyText: <EmptyState title="暂无审计日志" description="当前筛选条件下没有操作记录" /> }}
+        />
       </SectionCard>
       <div className="page-pagination">
         <Pagination current={page} total={total} pageSize={20} showSizeChanger={false} onChange={(p) => { setPage(p); fetchData(p) }} />

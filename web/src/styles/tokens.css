@@ -19,6 +19,8 @@
   --warning-soft: #fff5e5;
   --danger: #dc5151;
   --danger-soft: #fff0f0;
+  --editor-overlay: rgba(30, 30, 30, 0.82);
+  --editor-overlay-text: #d8dee9;
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -44,6 +46,8 @@
   --success-soft: #123a34;
   --warning-soft: #442f18;
   --danger-soft: #431f26;
+  --editor-overlay: rgba(8, 15, 25, 0.9);
+  --editor-overlay-text: #e7edf6;
   --shadow-card: none;
   --shadow-float: 0 18px 48px rgba(0, 0, 0, 0.35);
 }

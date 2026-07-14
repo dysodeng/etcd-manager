@@ -12,7 +12,7 @@ import { configApi } from '@/api/config'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
-import { CopyableCode, EmptyState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
+import { CopyableCode, EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import { formatTime, downloadBlob } from '@/utils'
 
 export default function ConfigPage() {
@@ -22,6 +22,7 @@ export default function ConfigPage() {
 
   const [items, setItems] = useState<ConfigItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [searchPrefix, setSearchPrefix] = useState('')
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -36,17 +37,23 @@ export default function ConfigPage() {
   const [revPage, setRevPage] = useState(1)
   const [revLoading, setRevLoading] = useState(false)
   const [previewValue, setPreviewValue] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
+  const [rollingBackId, setRollingBackId] = useState<string | null>(null)
 
   const envName = currentEnv?.name ?? ''
 
   const fetchConfigs = async () => {
     if (!envName) return
     setLoading(true)
+    setError(null)
     try {
       const data = await configApi.list(envName, searchPrefix || undefined)
       setItems(data ?? [])
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '加载失败')
+    } catch (caught: unknown) {
+      const text = caught instanceof Error ? caught.message : '加载失败'
+      setError(text)
+      if (items.length > 0) message.error(text)
     } finally {
       setLoading(false)
     }
@@ -78,6 +85,7 @@ export default function ConfigPage() {
   }
 
   const handleRollback = async (revisionId: string) => {
+    setRollingBackId(revisionId)
     try {
       await configApi.rollback({ env: envName, key: historyKey, revision_id: revisionId })
       message.success('回滚成功')
@@ -85,6 +93,8 @@ export default function ConfigPage() {
       fetchRevisions(historyKey, revPage)
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '回滚失败')
+    } finally {
+      setRollingBackId(null)
     }
   }
 
@@ -104,6 +114,7 @@ export default function ConfigPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields()
+    setSaving(true)
     try {
       if (editing) {
         await configApi.update({ env: envName, key: values.key as string, value: editorValue, comment: values.comment as string })
@@ -116,16 +127,21 @@ export default function ConfigPage() {
       fetchConfigs()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setSaving(false)
     }
   }
 
   const handleDelete = async (key: string) => {
+    setDeletingKey(key)
     try {
       await configApi.delete(envName, key)
       message.success('删除成功')
       fetchConfigs()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '删除失败')
+    } finally {
+      setDeletingKey(null)
     }
   }
 
@@ -164,6 +180,8 @@ export default function ConfigPage() {
     )
   }
 
+  if (error && items.length === 0) return <ErrorState description={error} onRetry={fetchConfigs} />
+
   const getFullKey = (key: string) => {
     const prefix = currentEnv?.config_prefix ?? ''
     const base = currentEnv?.key_prefix ?? ''
@@ -197,6 +215,7 @@ export default function ConfigPage() {
             description={`将从环境「${envName}」中永久删除 ${record.key}`}
             onConfirm={() => handleDelete(record.key)}
             disabled={!isAdmin}
+            okButtonProps={{ loading: deletingKey === record.key }}
           >
             <Button size="small" danger disabled={!isAdmin}>删除</Button>
           </Popconfirm>
@@ -226,6 +245,7 @@ export default function ConfigPage() {
               title="确认回滚到此版本？"
               description={`配置 ${historyKey} 将回滚至 ${formatTime(record.created_at)} 的版本`}
               onConfirm={() => handleRollback(record.id)}
+              okButtonProps={{ loading: rollingBackId === record.id }}
             >
               <Button size="small" icon={<RollbackOutlined />}>回滚</Button>
             </Popconfirm>
@@ -274,7 +294,7 @@ export default function ConfigPage() {
           onChange={(event) => setSearchPrefix(event.target.value)}
           onPressEnter={() => fetchConfigs()}
         />
-        <Button icon={<ReloadOutlined />} onClick={() => fetchConfigs()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchConfigs()} loading={loading}>刷新</Button>
       </PageToolbar>
 
       <SectionCard className="resource-card">
@@ -286,6 +306,15 @@ export default function ConfigPage() {
           loading={loading}
           pagination={false}
           size="middle"
+          locale={{
+            emptyText: (
+              <EmptyState
+                title="暂无配置"
+                description={`「${envName}」环境还没有配置`}
+                action={isAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建配置</Button> : undefined}
+              />
+            ),
+          }}
         />
       </SectionCard>
 
@@ -296,6 +325,10 @@ export default function ConfigPage() {
         onCancel={() => setModalOpen(false)}
         width={700}
         destroyOnHidden
+        className="app-modal"
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={saving}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="key" label="Key" rules={[{ required: true, message: '请输入 Key' }]}>
@@ -341,6 +374,8 @@ export default function ConfigPage() {
         onCancel={() => setPreviewValue(null)}
         footer={null}
         width={700}
+        destroyOnHidden
+        className="app-modal"
       >
         {previewValue !== null && (
           <MonacoEditor value={previewValue} readOnly height={400} />

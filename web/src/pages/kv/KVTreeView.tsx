@@ -9,11 +9,13 @@ import { CopyableCode, EmptyState } from '@/components/ui'
 interface Props {
   treeData: KVTreeNode[]
   isAdmin: boolean
+  deletingKey?: string | null
+  onCreate: () => void
   onEdit: (item: KVItem) => void
-  onDelete: (key: string) => void
+  onDelete: (key: string) => void | Promise<void>
 }
 
-export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Props) {
+export default function KVTreeView({ treeData, isAdmin, deletingKey, onCreate, onEdit, onDelete }: Props) {
   const [selectedNode, setSelectedNode] = useState<KVTreeNode | null>(null)
 
   const handleSelect = (_: unknown, info: { node: KVTreeNode }) => {
@@ -26,7 +28,13 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
   }
 
   if (treeData.length === 0) {
-    return <EmptyState title="暂无 KV 数据" description="当前前缀下没有可展示的键值" />
+    return (
+      <EmptyState
+        title="暂无 KV 数据"
+        description="当前前缀下没有可展示的键值"
+        action={isAdmin ? <Button type="primary" onClick={onCreate}>新建键值</Button> : undefined}
+      />
+    )
   }
 
   return (
@@ -67,7 +75,8 @@ export default function KVTreeView({ treeData, isAdmin, onEdit, onDelete }: Prop
                 <Popconfirm
                   title="确认删除此键值？"
                   description={`将永久删除 ${selectedNode.kvItem.key}`}
-                  onConfirm={() => { onDelete(selectedNode.kvItem!.key); setSelectedNode(null) }}
+                  onConfirm={async () => { await onDelete(selectedNode.kvItem!.key); setSelectedNode(null) }}
+                  okButtonProps={{ danger: true, loading: deletingKey === selectedNode.kvItem.key }}
                 >
                   <Button danger size="small">删除</Button>
                 </Popconfirm>

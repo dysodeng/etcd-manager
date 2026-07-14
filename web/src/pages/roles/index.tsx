@@ -8,7 +8,7 @@ import type { Role, RolePermission, Environment } from '@/types'
 import { roleApi } from '@/api/role'
 import { useAuthStore, isSuper } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
-import { PageHeader, PageToolbar, SectionCard } from '@/components/ui'
+import { EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard } from '@/components/ui'
 import { formatTime } from '@/utils'
 import { updatePermissionState, type PermissionState } from './permissions'
 
@@ -28,6 +28,7 @@ export default function RolesPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [form] = Form.useForm()
@@ -36,15 +37,20 @@ export default function RolesPage() {
   const currentUser = useAuthStore(state => state.user)
   const isSuperAdmin = isSuper(currentUser)
   const { environments, fetch: fetchEnvs } = useEnvironmentStore()
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchData = async (p?: number) => {
     setLoading(true)
+    setError(null)
     try {
       const data = await roleApi.list(p ?? page, 20)
       setRoles(data.list)
       setTotal(data.total)
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '加载失败')
+    } catch (caught: unknown) {
+      const text = caught instanceof Error ? caught.message : '加载失败'
+      setError(text)
+      if (roles.length > 0) message.error(text)
     } finally {
       setLoading(false)
     }
@@ -91,6 +97,7 @@ export default function RolesPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields()
+    setSaving(true)
     const perms: RolePermission[] = ALL_MODULES.map(m => ({
       module: m.key,
       can_read: permissions[m.key]?.can_read ?? false,
@@ -114,16 +121,21 @@ export default function RolesPage() {
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
+    setDeletingId(id)
     try {
       await roleApi.delete(id)
       message.success('删除成功')
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '删除失败')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -145,9 +157,10 @@ export default function RolesPage() {
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
           <Popconfirm
-            title="确认删除？"
-            description={record.user_count > 0 ? '该角色还有关联用户，需先解绑' : undefined}
+            title={`确认删除角色「${record.name}」？`}
+            description={record.user_count > 0 ? `角色「${record.name}」还有 ${record.user_count} 个关联用户，需先解绑` : '删除后无法恢复'}
             onConfirm={() => handleDelete(record.id)}
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
           >
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -182,6 +195,8 @@ export default function RolesPage() {
     return <Result status="403" title="无权访问" subTitle="角色管理仅限超级管理员使用" />
   }
 
+  if (error && roles.length === 0) return <ErrorState description={error} onRetry={() => fetchData(1)} />
+
   return (
     <>
       <PageHeader
@@ -192,11 +207,28 @@ export default function RolesPage() {
       />
 
       <PageToolbar>
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>刷新</Button>
       </PageToolbar>
 
       <SectionCard title="角色列表" description={`共 ${total} 个角色`}>
-        <Table className="data-table" rowKey="id" columns={columns} dataSource={roles} loading={loading} pagination={false} size="middle" />
+        <Table
+          className="data-table"
+          rowKey="id"
+          columns={columns}
+          dataSource={roles}
+          loading={loading}
+          pagination={false}
+          size="middle"
+          locale={{
+            emptyText: (
+              <EmptyState
+                title="暂无角色"
+                description="创建角色后即可配置环境与模块权限"
+                action={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建角色</Button>}
+              />
+            ),
+          }}
+        />
       </SectionCard>
       <div className="page-pagination">
         <Pagination current={page} total={total} pageSize={20} showSizeChanger={false} onChange={(p) => { setPage(p); fetchData(p) }} />
@@ -209,6 +241,10 @@ export default function RolesPage() {
         onCancel={() => setModalOpen(false)}
         width={600}
         destroyOnHidden
+        className="app-modal"
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={saving}
       >
         <div className="app-modal-section management-modal-section">
           <h3>基本信息</h3>

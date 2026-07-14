@@ -25,6 +25,10 @@ export default function SyncRestorePanel({
   onSelectionChange,
   onRestore,
 }: SyncRestorePanelProps) {
+  const selectedNames = statuses
+    .filter((status) => selectedIds.includes(status.environment_id))
+    .map((status) => status.environment_name)
+
   return (
     <>
       {statuses.length > 0 && (
@@ -46,8 +50,21 @@ export default function SyncRestorePanel({
         onCancel={onClose}
         confirmLoading={restoring}
         okText="恢复选中环境"
+        cancelText="取消"
+        destroyOnHidden
+        className="app-modal app-modal--danger"
+        okButtonProps={{ danger: true, disabled: selectedIds.length === 0 }}
       >
         <p>以下环境在数据库中有配置记录，但当前 etcd 集群中没有对应数据。选择要恢复的环境：</p>
+        {selectedNames.length > 0 && (
+          <Alert
+            className="app-modal-alert"
+            type="warning"
+            showIcon
+            message={`即将恢复：${selectedNames.join('、')}`}
+            description="恢复会把数据库中保存的配置重新写入当前 etcd 集群。"
+          />
+        )}
         <Checkbox.Group
           value={selectedIds}
           onChange={(values) => onSelectionChange(values as string[])}

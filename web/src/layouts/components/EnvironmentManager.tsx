@@ -25,7 +25,7 @@ function fullPrefix(record: Environment, suffix: string) {
 function CopyButton({ text }: { text: string }) {
   return (
     <CopyOutlined
-      style={{ marginLeft: 4, cursor: 'pointer', color: 'var(--primary)' }}
+      className="copy-action"
       onClick={() => { copyText(text).then(() => message.success('已复制')) }}
     />
   )
@@ -42,6 +42,8 @@ export default function EnvironmentManager({
   const [form] = Form.useForm<EnvironmentCreateRequest>()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<Environment | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const openCreate = () => {
     setEditing(null)
@@ -65,8 +67,22 @@ export default function EnvironmentManager({
 
   const handleSave = async () => {
     const values = await form.validateFields()
-    const saved = await onSave(values, editing)
-    if (saved !== false) setEditorOpen(false)
+    setSaving(true)
+    try {
+      const saved = await onSave(values, editing)
+      if (saved !== false) setEditorOpen(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (environment: Environment) => {
+    setDeletingId(environment.id)
+    try {
+      await onDelete(environment.id)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const columns: ColumnsType<Environment> = [
@@ -96,7 +112,12 @@ export default function EnvironmentManager({
       render: (_: unknown, record: Environment) => (
         <Space>
           <Button size="small" aria-label={`编辑 ${record.name}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
-          <Popconfirm title="确认删除？" onConfirm={() => onDelete(record.id)}>
+          <Popconfirm
+            title={`确认删除环境「${record.name}」？`}
+            description={`将删除环境「${record.name}」及其管理配置，此操作无法恢复`}
+            onConfirm={() => handleDelete(record)}
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
+          >
             <Button size="small" danger aria-label={`删除 ${record.name}`} icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -106,7 +127,15 @@ export default function EnvironmentManager({
 
   return (
     <>
-      <Modal title="环境管理" open={open} onCancel={onClose} footer={null} width={1100}>
+      <Modal
+        title="环境管理"
+        open={open}
+        onCancel={onClose}
+        footer={null}
+        width={1100}
+        destroyOnHidden
+        className="app-modal app-modal--wide"
+      >
         <div className="app-modal-section">
           {canManage && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建环境</Button>
@@ -124,6 +153,10 @@ export default function EnvironmentManager({
         onCancel={() => setEditorOpen(false)}
         afterClose={() => form.resetFields()}
         destroyOnHidden
+        className="app-modal"
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={saving}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="环境名称" rules={[{ required: true, message: '请输入环境名称' }]}>

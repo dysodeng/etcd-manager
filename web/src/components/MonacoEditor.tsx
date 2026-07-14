@@ -62,7 +62,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
 
   return (
     <>
-      <div style={{ position: 'relative' }}>
+      <div className="monaco-editor-shell">
         <Suspense fallback={<Spin style={{ display: 'block', margin: '48px auto' }} />}>
           <Editor
             height={height}
@@ -80,14 +80,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
             size="small"
             icon={<ExpandOutlined />}
             onClick={() => setExpanded(true)}
-            style={{
-              position: 'absolute',
-              top: 4,
-              right: 16,
-              zIndex: 10,
-              color: '#ccc',
-              background: 'rgba(30,30,30,0.8)',
-            }}
+            className="monaco-editor-expand"
           />
         </Tooltip>
       </div>
@@ -106,6 +99,7 @@ export default function MonacoEditor({ value, onChange, language, height = 400, 
           </Tooltip>
         }
         destroyOnHidden
+        className="app-modal app-modal--editor"
       >
         <Suspense fallback={<Spin style={{ display: 'block', margin: '48px auto' }} />}>
           <Editor

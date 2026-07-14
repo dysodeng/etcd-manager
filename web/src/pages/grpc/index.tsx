@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Table, Button, Space, Tag, Modal, Popconfirm,
-  Collapse, Badge, Tooltip, Spin, message,
+  Collapse, Badge, Tooltip, message,
 } from 'antd'
 import {
   ReloadOutlined, EyeOutlined,
@@ -12,7 +12,7 @@ import { grpcApi } from '@/api/grpc'
 import { useAuthStore, canWrite } from '@/stores/auth'
 import { useEnvironmentStore } from '@/stores/environment'
 import MonacoEditor from '@/components/MonacoEditor'
-import { CopyableCode, EmptyState, MetricCard, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
+import { CopyableCode, EmptyState, LoadingState, MetricCard, PageHeader, SectionCard, StatusBadge } from '@/components/ui'
 import { formatUnixTime } from '@/utils'
 import { buildServiceSummary } from '@/pages/services/presentation'
 
@@ -24,6 +24,7 @@ export default function GrpcPage() {
   const [groups, setGroups] = useState<GrpcServiceGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [previewJson, setPreviewJson] = useState<string | null>(null)
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null)
 
   const fetchData = async () => {
     if (!currentEnv?.name) return
@@ -44,12 +45,15 @@ export default function GrpcPage() {
 
   const handleUpdateStatus = async (instance: GrpcInstance, status: 'up' | 'down') => {
     if (!currentEnv?.name) return
+    setUpdatingKey(instance.key)
     try {
       await grpcApi.updateStatus(currentEnv.name, instance.key, status)
       message.success(status === 'up' ? '实例已上线' : '实例已下线')
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setUpdatingKey(null)
     }
   }
 
@@ -98,14 +102,24 @@ export default function GrpcPage() {
             />
           </Tooltip>
           {isAdmin && record.status === 'up' && (
-            <Popconfirm title="确认下线该实例？" onConfirm={() => handleUpdateStatus(record, 'down')}>
+            <Popconfirm
+              title={`确认下线实例「${record.instance_id}」？`}
+              description={`地址：${record.address}`}
+              onConfirm={() => handleUpdateStatus(record, 'down')}
+              okButtonProps={{ danger: true, loading: updatingKey === record.key }}
+            >
               <Tooltip title="下线">
                 <Button size="small" danger icon={<StopOutlined />} />
               </Tooltip>
             </Popconfirm>
           )}
           {isAdmin && record.status !== 'up' && (
-            <Popconfirm title="确认上线该实例？" onConfirm={() => handleUpdateStatus(record, 'up')}>
+            <Popconfirm
+              title={`确认上线实例「${record.instance_id}」？`}
+              description={`地址：${record.address}`}
+              onConfirm={() => handleUpdateStatus(record, 'up')}
+              okButtonProps={{ loading: updatingKey === record.key }}
+            >
               <Tooltip title="上线">
                 <Button size="small" type="primary" icon={<PlayCircleOutlined />} />
               </Tooltip>
@@ -120,7 +134,7 @@ export default function GrpcPage() {
     key: group.service_name,
     label: (
       <Space>
-        <span style={{ fontWeight: 500 }}>{group.service_name}</span>
+        <span className="service-group-name">{group.service_name}</span>
         <Badge className="service-count" count={group.instance_count} />
         <StatusBadge tone="success">{group.healthy_count} 正常</StatusBadge>
         {group.unhealthy_count > 0 && <StatusBadge tone="danger">{group.unhealthy_count} 下线</StatusBadge>}
@@ -158,8 +172,8 @@ export default function GrpcPage() {
       </div>
 
       <SectionCard title="服务实例" description={`共 ${summary.services} 个服务，${summary.instances} 个实例`}>
-        {loading ? (
-          <Spin style={{ display: 'block', margin: '48px auto' }} />
+        {loading && groups.length === 0 ? (
+          <LoadingState rows={4} />
         ) : groups.length > 0 ? (
           <Collapse
             className="service-groups"
@@ -177,6 +191,8 @@ export default function GrpcPage() {
         onCancel={() => setPreviewJson(null)}
         footer={null}
         width={700}
+        destroyOnHidden
+        className="app-modal"
       >
         {previewJson !== null && (
           <MonacoEditor value={previewJson} language="json" readOnly height={400} />

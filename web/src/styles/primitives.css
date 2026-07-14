@@ -13,5 +13,12 @@
 .metric-card--success small { color:var(--success); }.metric-card--warning small { color:var(--warning); }.metric-card--danger small { color:var(--danger); }
 .status-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600; }.status-badge i { width:6px; height:6px; border-radius:50%; background:currentColor; }
 .status-badge--success { color:var(--success); background:var(--success-soft); }.status-badge--warning { color:var(--warning); background:var(--warning-soft); }.status-badge--danger { color:var(--danger); background:var(--danger-soft); }.status-badge--info { color:var(--primary); background:var(--primary-soft); }.status-badge--neutral { color:var(--text-secondary); background:var(--surface-subtle); }
-.async-state { min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; }.async-state--error { color:var(--danger); }.async-state p { color:var(--text-secondary); }
+.async-state { min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; }.async-state > .ant-skeleton { width:min(100%,760px); }.async-state--error { color:var(--danger); }.async-state p { color:var(--text-secondary); }
 .copyable-code { display:inline-flex; align-items:center; gap:6px; max-width:100%; }.copyable-code__value { overflow:hidden; color:var(--text); font-family:var(--font-mono); text-overflow:ellipsis; white-space:nowrap; }
+.app-modal .ant-modal-content { overflow:hidden; border:1px solid var(--border); box-shadow:var(--shadow-float); }
+.app-modal .ant-modal-header { border-bottom:1px solid var(--border); }
+.app-modal .ant-modal-footer { border-top:1px solid var(--border); }
+.app-modal .ant-modal-title { color:var(--text); }
+.app-modal-alert { margin-bottom:16px; }
+.app-modal--editor .ant-modal-content { background:var(--sidebar); }
+.app-modal--editor .ant-modal-body { padding:0; }

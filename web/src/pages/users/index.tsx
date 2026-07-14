@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Pagination, Result } from 'antd'
+import { Alert, Table, Button, Modal, Form, Input, Select, message, Popconfirm, Pagination, Result } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { User, Role } from '@/types'
 import { userApi } from '@/api/user'
 import { roleApi } from '@/api/role'
 import { useAuthStore, canRead, canWrite, isSuper } from '@/stores/auth'
-import { PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
+import { EmptyState, ErrorState, PageHeader, PageToolbar, SectionCard, StatusBadge } from '@/components/ui'
 import { formatTime } from '@/utils'
 
 export default function UsersPage() {
@@ -14,6 +14,7 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm()
   const { user: currentUser } = useAuthStore()
@@ -24,6 +25,10 @@ export default function UsersPage() {
   // 转移超管
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferForm] = Form.useForm()
+  const [creating, setCreating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [transferring, setTransferring] = useState(false)
+  const transferTargetId = Form.useWatch('target_user_id', transferForm) as string | undefined
 
   const fetchRoles = async () => {
     try {
@@ -34,12 +39,15 @@ export default function UsersPage() {
 
   const fetchData = async (p?: number) => {
     setLoading(true)
+    setError(null)
     try {
       const data = await userApi.list(p ?? page)
       setUsers(data.list)
       setTotal(data.total)
-    } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '加载失败')
+    } catch (caught: unknown) {
+      const text = caught instanceof Error ? caught.message : '加载失败'
+      setError(text)
+      if (users.length > 0) message.error(text)
     } finally {
       setLoading(false)
     }
@@ -53,6 +61,7 @@ export default function UsersPage() {
 
   const handleCreate = async () => {
     const values = await form.validateFields()
+    setCreating(true)
     try {
       await userApi.create({
         username: values.username as string,
@@ -65,6 +74,8 @@ export default function UsersPage() {
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '创建失败')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -79,23 +90,29 @@ export default function UsersPage() {
   }
 
   const handleDelete = async (id: string) => {
+    setDeletingId(id)
     try {
       await userApi.delete(id)
       message.success('删除成功')
       fetchData()
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '删除失败')
+    } finally {
+      setDeletingId(null)
     }
   }
 
   const handleTransferSuper = async () => {
     const values = await transferForm.validateFields()
+    setTransferring(true)
     try {
       await userApi.transferSuper(values.target_user_id as string, values.role_id as string)
       message.success('超管转移成功，请重新登录')
       setTransferOpen(false)
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '转移失败')
+    } finally {
+      setTransferring(false)
     }
   }
 
@@ -129,7 +146,12 @@ export default function UsersPage() {
       title: '操作', key: 'actions', width: 100,
       render: (_: unknown, record: User) =>
         record.is_super || !isAdmin ? null : (
-          <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.id)}>
+          <Popconfirm
+            title={`确认删除用户「${record.username}」？`}
+            description="删除后该用户将无法登录控制台"
+            onConfirm={() => handleDelete(record.id)}
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
+          >
             <Button size="small" danger>删除</Button>
           </Popconfirm>
         ),
@@ -141,6 +163,10 @@ export default function UsersPage() {
   if (!canAccessUsers) {
     return <Result status="403" title="无权访问" subTitle="当前角色没有用户管理权限" />
   }
+
+  if (error && users.length === 0) return <ErrorState description={error} onRetry={() => fetchData(1)} />
+
+  const transferTarget = nonSuperUsers.find((candidate) => candidate.id === transferTargetId)
 
   return (
     <>
@@ -160,17 +186,44 @@ export default function UsersPage() {
           <Button onClick={() => { transferForm.resetFields(); setTransferOpen(true) }}>转移超管</Button>
         ) : undefined}
       >
-        <Button icon={<ReloadOutlined />} onClick={() => fetchData()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>刷新</Button>
       </PageToolbar>
 
       <SectionCard title="用户列表" description={`共 ${total} 个用户`}>
-        <Table className="data-table" rowKey="id" columns={columns} dataSource={users} loading={loading} pagination={false} size="middle" />
+        <Table
+          className="data-table"
+          rowKey="id"
+          columns={columns}
+          dataSource={users}
+          loading={loading}
+          pagination={false}
+          size="middle"
+          locale={{
+            emptyText: (
+              <EmptyState
+                title="暂无用户"
+                description="尚未创建可管理的控制台用户"
+                action={isSuperAdmin ? <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true) }}>新建用户</Button> : undefined}
+              />
+            ),
+          }}
+        />
       </SectionCard>
       <div className="page-pagination">
         <Pagination current={page} total={total} pageSize={20} showSizeChanger={false} onChange={(p) => { setPage(p); fetchData(p) }} />
       </div>
 
-      <Modal title="新建用户" open={modalOpen} onOk={handleCreate} onCancel={() => setModalOpen(false)} destroyOnHidden>
+      <Modal
+        title="新建用户"
+        open={modalOpen}
+        onOk={handleCreate}
+        onCancel={() => setModalOpen(false)}
+        destroyOnHidden
+        className="app-modal"
+        okText="创建"
+        cancelText="取消"
+        confirmLoading={creating}
+      >
         <Form form={form} layout="vertical">
           <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input />
@@ -188,7 +241,27 @@ export default function UsersPage() {
       </Modal>
 
       {/* 转移超管 */}
-      <Modal title="转移超级管理员" open={transferOpen} onOk={handleTransferSuper} onCancel={() => setTransferOpen(false)} destroyOnHidden>
+      <Modal
+        title={transferTarget ? `转移超级管理员给「${transferTarget.username}」` : '转移超级管理员'}
+        open={transferOpen}
+        onOk={handleTransferSuper}
+        onCancel={() => setTransferOpen(false)}
+        destroyOnHidden
+        className="app-modal app-modal--danger"
+        okText="确认转移"
+        cancelText="取消"
+        confirmLoading={transferring}
+        okButtonProps={{ danger: true }}
+      >
+        {transferTarget && (
+          <Alert
+            className="app-modal-alert"
+            type="warning"
+            showIcon
+            message={`超级管理员身份将转移给「${transferTarget.username}」`}
+            description="操作成功后当前账号需要重新登录，并将按所选角色降级。"
+          />
+        )}
         <Form form={transferForm} layout="vertical">
           <Form.Item name="target_user_id" label="目标用户" rules={[{ required: true, message: '请选择目标用户' }]}>
             <Select
