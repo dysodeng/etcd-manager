@@ -23,6 +23,7 @@ type clusterFixtureServer struct {
 
 	statusStarted chan<- uint64
 	statusRelease <-chan struct{}
+	nilHeader     bool
 }
 
 func (s *clusterFixtureServer) MemberList(context.Context, *etcdserverpb.MemberListRequest) (*etcdserverpb.MemberListResponse, error) {
@@ -32,12 +33,19 @@ func (s *clusterFixtureServer) MemberList(context.Context, *etcdserverpb.MemberL
 	}, nil
 }
 
-func (s *clusterFixtureServer) Status(context.Context, *etcdserverpb.StatusRequest) (*etcdserverpb.StatusResponse, error) {
+func (s *clusterFixtureServer) Status(ctx context.Context, _ *etcdserverpb.StatusRequest) (*etcdserverpb.StatusResponse, error) {
 	if s.statusStarted != nil {
 		s.statusStarted <- s.memberID
 	}
 	if s.statusRelease != nil {
-		<-s.statusRelease
+		select {
+		case <-s.statusRelease:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if s.nilHeader {
+		return &etcdserverpb.StatusResponse{}, nil
 	}
 	return &etcdserverpb.StatusResponse{
 		Header:           &etcdserverpb.ResponseHeader{ClusterId: 99, MemberId: s.memberID},
@@ -226,5 +234,43 @@ func TestClusterServiceMemberStatusesProbesMembersConcurrently(t *testing.T) {
 	released = true
 	if err := <-result; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestClusterServiceSlowConfiguredEndpointDoesNotHideAdvertisedMembers(t *testing.T) {
+	service, _, _, servers := newClusterServiceFixtureWithConfiguredEndpoints(t, 2)
+	release := make(chan struct{})
+	defer close(release)
+	servers[1].statusRelease = release
+
+	startedAt := time.Now()
+	statuses, err := service.MemberStatuses(context.Background())
+	if err != nil {
+		t.Fatalf("member statuses: %v", err)
+	}
+	if elapsed := time.Since(startedAt); elapsed >= 3*time.Second {
+		t.Fatalf("member statuses waited %s for one slow configured endpoint", elapsed)
+	}
+	foundThirdMember := false
+	for _, status := range statuses {
+		if status.Name == "etcd-2" {
+			foundThirdMember = true
+		}
+	}
+	if !foundThirdMember {
+		t.Fatal("healthy advertised member etcd-2 was hidden by a slow configured endpoint")
+	}
+}
+
+func TestClusterServiceMetricsTreatsHeaderlessStatusAsUnhealthy(t *testing.T) {
+	service, endpoints, _, servers := newClusterServiceFixture(t)
+	servers[1].nilHeader = true
+
+	metrics, err := service.Metrics(context.Background())
+	if err != nil {
+		t.Fatalf("metrics: %v", err)
+	}
+	if healthy, exists := metrics.Health[endpoints[1]]; !exists || healthy {
+		t.Fatalf("headerless endpoint health = %t, exists = %t; want false, true", healthy, exists)
 	}
 }

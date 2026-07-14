@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/dysodeng/etcd-manager/internal/etcd"
@@ -80,8 +79,9 @@ type ClusterMetrics struct {
 }
 
 type memberProbeTarget struct {
-	memberID uint64
-	endpoint string
+	memberID   uint64
+	endpoint   string
+	configured bool
 }
 
 type memberProbeResult struct {
@@ -89,6 +89,11 @@ type memberProbeResult struct {
 	endpoint string
 	status   *clientv3.StatusResponse
 	err      error
+}
+
+type memberProbeOutcome struct {
+	target memberProbeTarget
+	result memberProbeResult
 }
 
 func uniqueEndpoints(endpoints []string) []string {
@@ -111,6 +116,9 @@ func memberClientTargets(members []*etcdserverpb.Member, resolved map[uint64]mem
 	memberURLs := make([][]string, len(members))
 	owners := make(map[string]int, len(members))
 	for i, member := range members {
+		if member == nil {
+			continue
+		}
 		seen := make(map[string]struct{}, len(member.ClientURLs))
 		for _, endpoint := range member.ClientURLs {
 			if endpoint == "" {
@@ -125,8 +133,11 @@ func memberClientTargets(members []*etcdserverpb.Member, resolved map[uint64]mem
 		}
 	}
 
-	targets := make([]memberProbeTarget, 0, len(members)-len(resolved))
+	targets := make([]memberProbeTarget, 0, len(members))
 	for i, urls := range memberURLs {
+		if members[i] == nil {
+			continue
+		}
 		memberID := members[i].ID
 		if _, exists := resolved[memberID]; exists {
 			continue
@@ -154,30 +165,14 @@ func memberClientTargets(members []*etcdserverpb.Member, resolved map[uint64]mem
 	return targets
 }
 
-type endpointStatusResult struct {
-	endpoint string
-	status   *clientv3.StatusResponse
-	err      error
-}
-
-func (s *ClusterService) probeEndpoints(ctx context.Context, endpoints []string) []endpointStatusResult {
-	results := make([]endpointStatusResult, len(endpoints))
-	var wg sync.WaitGroup
-	wg.Add(len(endpoints))
-	for i, endpoint := range endpoints {
-		go func() {
-			defer wg.Done()
-			status, err := s.etcdClient.Status(ctx, endpoint)
-			results[i] = endpointStatusResult{endpoint: endpoint, status: status, err: err}
-		}()
-	}
-	wg.Wait()
-	return results
-}
+const memberProbeTimeout = 2 * time.Second
 
 func (s *ClusterService) probeMembers(ctx context.Context, members []*etcdserverpb.Member) []memberProbeResult {
 	knownMembers := make(map[uint64]struct{}, len(members))
 	for _, member := range members {
+		if member == nil {
+			continue
+		}
 		knownMembers[member.ID] = struct{}{}
 	}
 
@@ -187,53 +182,88 @@ func (s *ClusterService) probeMembers(ctx context.Context, members []*etcdserver
 		usedEndpoints[endpoint] = struct{}{}
 	}
 
-	resolved := make(map[uint64]memberProbeResult, len(members))
-	for _, result := range s.probeEndpoints(ctx, configuredEndpoints) {
-		if result.err != nil || result.status == nil || result.status.Header == nil {
-			continue
-		}
-		memberID := result.status.Header.MemberId
-		if _, known := knownMembers[memberID]; !known {
-			continue
-		}
-		if _, exists := resolved[memberID]; exists {
-			continue
-		}
-		resolved[memberID] = memberProbeResult{
-			memberID: memberID,
-			endpoint: result.endpoint,
-			status:   result.status,
-		}
+	targets := make([]memberProbeTarget, 0, len(configuredEndpoints)+len(members))
+	for _, endpoint := range configuredEndpoints {
+		targets = append(targets, memberProbeTarget{endpoint: endpoint, configured: true})
+	}
+	targets = append(targets, memberClientTargets(members, nil, usedEndpoints)...)
+
+	probeCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	probes := make(chan memberProbeOutcome, len(targets))
+	for _, target := range targets {
+		go func() {
+			requestCtx, requestCancel := context.WithTimeout(probeCtx, memberProbeTimeout)
+			defer requestCancel()
+
+			status, err := s.etcdClient.Status(requestCtx, target.endpoint)
+			if err == nil && (status == nil || status.Header == nil) {
+				err = fmt.Errorf("endpoint %s returned a status without a response header", target.endpoint)
+			}
+			probes <- memberProbeOutcome{
+				target: target,
+				result: memberProbeResult{
+					memberID: target.memberID,
+					endpoint: target.endpoint,
+					status:   status,
+					err:      err,
+				},
+			}
+		}()
 	}
 
-	failed := make(map[uint64]memberProbeResult)
-	targets := memberClientTargets(members, resolved, usedEndpoints)
-	advertisedEndpoints := make([]string, len(targets))
-	for i, target := range targets {
-		advertisedEndpoints[i] = target.endpoint
-	}
-	for i, result := range s.probeEndpoints(ctx, advertisedEndpoints) {
-		target := targets[i]
-		probe := memberProbeResult{
-			memberID: target.memberID,
-			endpoint: result.endpoint,
-			status:   result.status,
-			err:      result.err,
+	resolved := make(map[uint64]memberProbeResult, len(knownMembers))
+	configuredResolved := make(map[uint64]struct{}, len(knownMembers))
+	failed := make(map[uint64]memberProbeResult, len(knownMembers))
+
+probeLoop:
+	for received := 0; received < len(targets); received++ {
+		select {
+		case <-ctx.Done():
+			break probeLoop
+		case outcome := <-probes:
+			target := outcome.target
+			result := outcome.result
+			if result.err != nil {
+				if target.memberID != 0 {
+					result.memberID = target.memberID
+					failed[target.memberID] = result
+				}
+				continue
+			}
+
+			memberID := result.status.Header.MemberId
+			if _, known := knownMembers[memberID]; !known {
+				if target.memberID != 0 {
+					result.memberID = target.memberID
+					result.err = fmt.Errorf("endpoint %s answered as unknown member %x", result.endpoint, memberID)
+					failed[target.memberID] = result
+				}
+				continue
+			}
+
+			result.memberID = memberID
+			if target.configured {
+				resolved[memberID] = result
+				configuredResolved[memberID] = struct{}{}
+			} else if _, configured := configuredResolved[memberID]; !configured {
+				if _, exists := resolved[memberID]; !exists {
+					resolved[memberID] = result
+				}
+			}
+			delete(failed, memberID)
+			if len(resolved) == len(knownMembers) {
+				cancel()
+				break probeLoop
+			}
 		}
-		if result.err != nil || result.status == nil || result.status.Header == nil {
-			failed[target.memberID] = probe
-			continue
-		}
-		if result.status.Header.MemberId != target.memberID {
-			probe.err = fmt.Errorf("endpoint %s answered as member %x, want %x", result.endpoint, result.status.Header.MemberId, target.memberID)
-			failed[target.memberID] = probe
-			continue
-		}
-		resolved[target.memberID] = probe
 	}
 
 	results := make([]memberProbeResult, 0, len(members))
 	for _, member := range members {
+		if member == nil {
+			continue
+		}
 		if result, exists := resolved[member.ID]; exists {
 			results = append(results, result)
 			continue
@@ -265,7 +295,7 @@ func (s *ClusterService) Metrics(ctx context.Context) (*ClusterMetrics, error) {
 		Health:      make(map[string]bool),
 	}
 	for _, result := range s.probeMembers(ctx, memberResp.Members) {
-		if result.err != nil {
+		if result.err != nil || result.status == nil || result.status.Header == nil {
 			metrics.Health[result.endpoint] = false
 			continue
 		}
@@ -320,7 +350,7 @@ func (s *ClusterService) MemberStatuses(ctx context.Context) ([]MemberStatus, er
 
 	var results []MemberStatus
 	for _, result := range s.probeMembers(ctx, memberResp.Members) {
-		if result.err != nil {
+		if result.err != nil || result.status == nil || result.status.Header == nil {
 			continue
 		}
 		sr := result.status
